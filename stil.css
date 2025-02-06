@@ -451,61 +451,183 @@ body {
     justify-content: center;
     align-items: center;
     z-index: 1500;
-    padding: 15px;
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
 }
 
 .olum-icerik {
     background: var(--vercel-gray);
-    border-radius: 15px;
-    padding: min(30px, 5vw);
-    width: min(400px, 95%);
-    max-height: min(500px, 90vh);
+    border-radius: min(15px, 4vw);
+    padding: max(15px, 3vh) max(20px, 4vw);
+    width: min(400px, 92%);
+    max-height: 80vh;
     overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
     text-align: center;
     border: 2px solid var(--vurgu-renk);
     animation: olceklenGel 0.3s ease-out;
     box-shadow: 0 0 30px rgba(255, 85, 85, 0.2);
+    margin: env(safe-area-inset-top) auto env(safe-area-inset-bottom);
 }
 
 .olum-icerik h2 {
     color: var(--vurgu-renk);
-    font-size: clamp(2em, 8vw, 3em);
-    margin: 0 0 min(20px, 4vw) 0;
+    font-size: min(3em, 10vw);
+    margin: 0 0 max(10px, 2vh) 0;
     text-shadow: 0 0 10px rgba(255, 85, 85, 0.5);
+    line-height: 1.2;
 }
 
 .skor-bilgileri {
     background: rgba(0, 0, 0, 0.3);
-    padding: min(20px, 4vw);
-    border-radius: 10px;
-    margin-bottom: min(25px, 5vw);
+    padding: max(12px, 2.5vh) max(15px, 3vw);
+    border-radius: min(10px, 2vw);
+    margin-bottom: max(15px, 3vh);
+    font-size: max(14px, 3.5vw);
 }
 
 .skor-bilgileri div {
-    margin: min(10px, 2vw) 0;
-    font-size: clamp(1em, 4vw, 1.2em);
-    white-space: nowrap;
+    margin: max(8px, 1.5vh) 0;
+    font-size: min(1.2em, 5vw);
+    line-height: 1.4;
 }
 
 .butonlar {
     display: flex;
-    gap: min(15px, 3vw);
+    gap: max(10px, 2vw);
     justify-content: center;
     flex-wrap: wrap;
+    padding: max(5px, 1vh) 0;
 }
 
 .butonlar button {
-    padding: min(15px, 3vw) min(25px, 5vw);
-    font-size: clamp(0.9em, 3.5vw, 1.1em);
+    padding: max(10px, 2vh) max(20px, 4vw);
+    font-size: min(1.1em, 4.5vw);
     border: none;
-    border-radius: 8px;
+    border-radius: min(8px, 2vw);
     cursor: pointer;
     transition: all 0.3s ease;
     color: white;
     font-weight: bold;
-    min-width: 120px;
+    min-width: min(120px, 30vw);
     flex: 1;
-    max-width: 200px;
+    max-width: min(200px, 45vw);
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+}
+
+@supports (-webkit-touch-callout: none) {
+    .olum-icerik {
+        max-height: -webkit-fill-available;
+    }
+
+    .butonlar button {
+        padding: max(12px, 2.5vh) max(25px, 5vw);
+    }
+}
+
+@supports not (-webkit-touch-callout: none) {
+    .olum-icerik {
+        max-height: 85vh;
+    }
+}
+
+@media (max-width: 768px) {
+    #olumEkrani {
+        padding: env(safe-area-inset-top, 10px) env(safe-area-inset-right, 10px) 
+                env(safe-area-inset-bottom, 10px) env(safe-area-inset-left, 10px);
+    }
+
+    .olum-icerik {
+        padding: max(15px, 3vh);
+        width: min(92%, 400px);
+        margin: auto;
+    }
+
+    .skor-bilgileri {
+        padding: max(12px, 2.5vh);
+        margin-bottom: max(15px, 3vh);
+    }
+
+    .butonlar {
+        flex-direction: column;
+        gap: max(8px, 1.5vh);
+    }
+
+    .butonlar button {
+        width: 100%;
+        max-width: none;
+        padding: max(12px, 2.5vh);
+        margin: 0;
+        font-size: min(1em, 4.5vw);
+    }
+}
+
+@media (max-height: 500px) and (orientation: landscape) {
+    .olum-icerik {
+        display: grid;
+        grid-template-columns: auto 1fr auto;
+        gap: max(10px, 2vw);
+        max-width: 95%;
+        padding: max(10px, 2vh);
+        height: auto;
+        max-height: 90vh;
+    }
+
+    .olum-icerik h2 {
+        writing-mode: vertical-lr;
+        transform: rotate(180deg);
+        margin: 0;
+        font-size: min(2.5em, 8vh);
+        white-space: nowrap;
+    }
+
+    .skor-bilgileri {
+        margin: 0;
+        text-align: left;
+        font-size: min(1em, 3.5vh);
+    }
+
+    .butonlar {
+        flex-direction: column;
+        justify-content: center;
+        gap: max(5px, 1vh);
+        min-width: min(100px, 25vw);
+    }
+
+    .butonlar button {
+        padding: max(8px, 1.5vh);
+        font-size: min(0.9em, 3vh);
+        white-space: nowrap;
+    }
+}
+
+@media (max-width: 360px) {
+    .olum-icerik {
+        padding: max(12px, 2.5vh);
+    }
+
+    .olum-icerik h2 {
+        font-size: min(2em, 8vw);
+        margin-bottom: max(10px, 2vh);
+    }
+
+    .skor-bilgileri {
+        padding: max(10px, 2vh);
+        margin-bottom: max(12px, 2.5vh);
+        font-size: min(0.9em, 4vw);
+    }
+
+    .butonlar button {
+        padding: max(10px, 2vh);
+        font-size: min(0.9em, 4vw);
+    }
+}
+
+@media screen and (orientation: landscape) and (min-width: 812px) {
+    .olum-icerik {
+        margin-left: env(safe-area-inset-left);
+        margin-right: env(safe-area-inset-right);
+    }
 }
 
 #yenidenOyna {
@@ -514,94 +636,4 @@ body {
 
 #menuDon {
     background: #333;
-}
-
-@media (max-width: 768px) {
-    #olumEkrani {
-        padding: 10px;
-        align-items: center;
-    }
-
-    .olum-icerik {
-        padding: 20px;
-        width: 95%;
-        max-height: 85vh;
-    }
-
-    .skor-bilgileri {
-        padding: 15px;
-        margin-bottom: 20px;
-    }
-
-    .butonlar {
-        flex-direction: column;
-        gap: 10px;
-    }
-
-    .butonlar button {
-        width: 100%;
-        max-width: none;
-        padding: 12px;
-    }
-}
-
-@media (max-height: 500px) and (orientation: landscape) {
-    .olum-icerik {
-        display: flex;
-        flex-direction: row;
-        align-items: center;
-        gap: 20px;
-        max-width: 90%;
-        padding: 15px;
-    }
-
-    .olum-icerik h2 {
-        margin: 0;
-        writing-mode: vertical-lr;
-        transform: rotate(180deg);
-        text-align: center;
-        font-size: clamp(1.5em, 6vh, 2.5em);
-    }
-
-    .skor-bilgileri {
-        flex: 1;
-        margin-bottom: 0;
-        text-align: left;
-    }
-
-    .butonlar {
-        flex-direction: column;
-        gap: 8px;
-        min-width: 120px;
-    }
-
-    .butonlar button {
-        padding: 8px;
-        font-size: 0.9em;
-    }
-}
-
-@media (max-width: 360px) {
-    .olum-icerik {
-        padding: 15px;
-    }
-
-    .olum-icerik h2 {
-        font-size: 2em;
-        margin-bottom: 15px;
-    }
-
-    .skor-bilgileri {
-        padding: 12px;
-        margin-bottom: 15px;
-    }
-
-    .skor-bilgileri div {
-        font-size: 0.9em;
-    }
-
-    .butonlar button {
-        padding: 10px;
-        font-size: 0.9em;
-    }
 } 
