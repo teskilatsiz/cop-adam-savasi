@@ -494,6 +494,11 @@ function mobilArayuzCiz() {
 }
 
 function oyunDongusu() {
+    if (!oyunDevamEdiyor && !document.getElementById('olumEkrani')) {
+        olumEkraniGoster();
+        return;
+    }
+
     cizimAlani.clearRect(0, 0, tuval.width, tuval.height);
 
     if (oyunDevamEdiyor) {
@@ -501,14 +506,14 @@ function oyunDongusu() {
         kamerayiGuncelle();
         oyunuCiz();
         parcaciklariGuncelle();
-        animasyonID = requestAnimationFrame(oyunDongusu);
-    } else {
-        olumEkraniGoster();
-        animasyonID = requestAnimationFrame(oyunDongusu);
     }
+
+    animasyonID = requestAnimationFrame(oyunDongusu);
 }
 
 function olumEkraniGoster() {
+    if (document.getElementById('olumEkrani')) return;
+
     const olumEkrani = document.createElement('div');
     olumEkrani.id = 'olumEkrani';
     olumEkrani.innerHTML = `
@@ -527,7 +532,6 @@ function olumEkraniGoster() {
     `;
     document.body.appendChild(olumEkrani);
 
-    // Buton olaylarını ekle
     document.getElementById('yenidenOyna').addEventListener('click', () => {
         document.body.removeChild(olumEkrani);
         reklamGoster();
@@ -538,11 +542,14 @@ function olumEkraniGoster() {
         oyunuSifirla();
         document.getElementById('girisEkrani').style.display = 'flex';
         tuval.style.display = 'none';
+        if (animasyonID) {
+            cancelAnimationFrame(animasyonID);
+            animasyonID = null;
+        }
     });
 }
 
 function oyunuSifirla() {
-    // Oyun değişkenlerini sıfırla
     oyuncu.x = OYUN.ALAN.GENISLIK / 2;
     oyuncu.y = OYUN.ALAN.YUKSEKLIK / 2;
     oyuncu.can = 100;
@@ -561,6 +568,11 @@ function oyunuSifirla() {
 function oyunBitti() {
     oyunDevamEdiyor = false;
     SES.oynat(SES.olum);
+    
+    cizimAlani.clearRect(0, 0, tuval.width, tuval.height);
+    kamerayiGuncelle();
+    oyunuCiz();
+    
     olumEkraniGoster();
 }
 
@@ -895,35 +907,12 @@ function npcOlustur() {
 }
 
 function yenidenBaslat() {
-    if (animasyonID) {
-        cancelAnimationFrame(animasyonID);
-        animasyonID = null;
-    }
-
-    tuval.removeEventListener('click', yenidenBaslat);
-    tuval.removeEventListener('touchstart', yenidenBaslat);
-
-    oyuncu.x = OYUN.ALAN.GENISLIK / 2;
-    oyuncu.y = OYUN.ALAN.YUKSEKLIK / 2;
-    oyuncu.can = 100;
-    oyuncu.silahVar = false;
-    oyuncu.mermiSayisi = 0;
-
-    dusmanlar = [];
-    for(let i = 0; i < OYUN.DUSMAN.SAYI; i++) {
-        npcOlustur();
-    }
-
-    silahlar = [];
-    for(let i = 0; i < OYUN.SILAH.MAKS_SAYI; i++) {
-        silahOlustur();
-    }
-
-    mermiler = [];
-    parcaciklar = [];
-
+    oyunuSifirla();
     oyunDevamEdiyor = true;
-    animasyonID = requestAnimationFrame(oyunDongusu);
+    
+    if (!animasyonID) {
+        animasyonID = requestAnimationFrame(oyunDongusu);
+    }
 }
 
 function dusmanYapayZekasi() {
@@ -1067,7 +1056,7 @@ function reklamGoster() {
         img.style.height = '100%';
         img.style.objectFit = 'contain';
         img.style.borderRadius = '10px';
-        img.src = 'gorsel/reklam.jpg';
+        img.src = 'gorsel/reklam.png';
         
         reklamAlan.appendChild(img);
     }
