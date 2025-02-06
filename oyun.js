@@ -17,6 +17,22 @@ const OYUN = {
         YENI_OLUSTURMA_SURESI: 3000
     },
     MOBIL: {
+        JOYSTICK: {
+            YARICAP: 60,
+            HASSASIYET: 1.2,
+            KONUM: {
+                X: 100,
+                Y: null
+            },
+            SABIT_KONUM: true
+        },
+        ATES: {
+            YARICAP: 50,
+            KONUM: {
+                X: null,
+                Y: null
+            }
+        },
         JOYSTICK_BOYUT: 150,
         ATES_BUTON_BOYUT: 150,
         MINI_HARITA_BOYUT: 200,
@@ -37,24 +53,27 @@ const kamera = {
 const oyuncu = {
     x: OYUN.ALAN.GENISLIK / 2,
     y: OYUN.ALAN.YUKSEKLIK / 2,
-    genislik: 10,
-    yukseklik: 40,
+    genislik: 20,
+    yukseklik: 80,
     hiz: 5,
     can: 100,
     silahVar: false,
     mermiSayisi: 0,
     yon: 1,
     renk: '#ffffff',
-    aci: 0
+    aci: 0,
+    silahTip: null,
+    sonAtesZamani: 0
 };
 
 let dusmanlar = [];
 let mermiler = [];
 let silahlar = [];
 let parcaciklar = [];
-
 let oyunDevamEdiyor = false;
 let oyuncuAdi = '';
+let mobilOtomatikAtesInterval = null;
+let mobilOtomatikAtes = false;
 
 const mobilKontroller = {
     joystick: {
@@ -114,28 +133,138 @@ const SES = {
 
 let animasyonID = null;
 
-function canvasiBoyutlandir() {
-    const olcek = window.devicePixelRatio || 1;
-    const isMobil = window.innerWidth <= 768;
+const SILAH = {
+    NORMAL: {
+        ATES_HIZI: 250,
+        HASAR: 25,
+        MERMI_BOYUT: 5,
+        MERMI_HIZ: 15,
+        MERMI_RENK: '#ffffff',
+        SILAH_RENK: '#666666'
+    },
+    MINIGUN: {
+        ATES_HIZI: 50,
+        HASAR: 15,
+        MERMI_BOYUT: 3,
+        MERMI_HIZ: 20,
+        MERMI_RENK: '#ffffff',
+        SILAH_RENK: '#ff3333'
+    }
+};
+
+const DUSMAN = {
+    NORMAL: {
+        CAN: 100,
+        HIZ: 2.5,
+        BOYUT: { w: 20, h: 80 },
+        HASAR: 5,
+        RENK: '#ff3333',
+        MERMI_BOYUT: 5,
+        MERMI_RENK: '#ff0000'
+    },
+    BOSS: {
+        CAN: 300,
+        HIZ: 1.5,
+        BOYUT: { w: 60, h: 240 },
+        HASAR: 50,
+        RENK: '#990000',
+        MERMI_BOYUT: 15,
+        MERMI_RENK: '#ff0000',
+        ISIM: 'Safsata Canavarı'
+    }
+};
+
+const MERMI = {
+    OYUNCU: {
+        NORMAL: {
+            RENK: '#ffffff',
+            TAKIP_GUCU: 0.15,
+            MENZIL: 1200
+        },
+        MINIGUN: {
+            RENK: '#ffffff',
+            TAKIP_GUCU: 0.2,
+            MENZIL: 1000
+        }
+    },
+    DUSMAN: {
+        NORMAL: {
+            RENK: '#ff0000',
+            TAKIP_GUCU: 0.1,
+            MENZIL: 800
+        },
+        BOSS: {
+            RENK: '#ff3333',
+            TAKIP_GUCU: 0.15,
+            MENZIL: 1000
+        }
+    }
+};
+
+const ANIMASYON = {
+    YURUME_HIZI: 0.1,
+    SALLANMA_MIKTARI: 5,
+    KAFA_DONME: 0.05
+};
+
+let animasyonZamani = 0;
+let kafaDonmeAcisi = 0;
+
+let mouseBasili = false;
+let sonAtesZamani = 0;
+
+function checkOrientation() {
+    if (window.mobileCheck()) {
+        if (window.innerHeight < window.innerWidth) {
+            document.documentElement.classList.add('landscape');
+            document.documentElement.classList.remove('portrait');
+        } else {
+            document.documentElement.classList.add('portrait');
+            document.documentElement.classList.remove('landscape');
+        }
+    }
+}
+
+window.addEventListener('load', checkOrientation);
+window.addEventListener('resize', checkOrientation);
+window.addEventListener('orientationchange', checkOrientation);
+
+function silahKontrolEt() {
+    if (!oyunDevamEdiyor) return;
     
-    tuval.width = window.innerWidth * olcek;
-    tuval.height = window.innerHeight * olcek;
-    tuval.style.width = window.innerWidth + 'px';
-    tuval.style.height = window.innerHeight + 'px';
-    
-    if (isMobil) {
-        mobilKontroller.joystick.yaricap = OYUN.MOBIL.JOYSTICK_BOYUT / 2;
-        mobilKontroller.joystick.merkez = {
-            x: OYUN.MOBIL.JOYSTICK_BOYUT,
-            y: tuval.height - OYUN.MOBIL.JOYSTICK_BOYUT * 1.2
-        };
+    silahlar.forEach((silah, index) => {
+        const ekranKonum = dunyaKonumundanEkranKonumuna(silah.x, silah.y);
+        const oyuncuEkranKonum = dunyaKonumundanEkranKonumuna(oyuncu.x, oyuncu.y);
+        const mesafe = Math.hypot(
+            oyuncuEkranKonum.x - ekranKonum.x, 
+            oyuncuEkranKonum.y - ekranKonum.y
+        );
         
-        mobilKontroller.atesButonu = {
-            x: tuval.width - OYUN.MOBIL.ATES_BUTON_BOYUT,
-            y: tuval.height - OYUN.MOBIL.ATES_BUTON_BOYUT * 1.2,
-            yaricap: OYUN.MOBIL.ATES_BUTON_BOYUT / 2,
-            aktif: false
-        };
+        if (mesafe < 60) {
+            oyuncu.silahVar = true;
+            oyuncu.silahTip = silah.tip;
+            oyuncu.mermiSayisi = silah.mermiSayisi;
+            silahlar.splice(index, 1);
+            SES.oynat(SES.ates);
+        }
+    });
+}
+
+function canvasiBoyutlandir() {
+    const isMobile = window.innerWidth <= 768;
+    const width = isMobile ? window.innerWidth : 1200;
+    const height = isMobile ? window.innerHeight : 600;
+
+    tuval.width = width;
+    tuval.height = height;
+    tuval.style.width = `${width}px`;
+    tuval.style.height = `${height}px`;
+
+    if (isMobile) {
+        kamera.yakinlik = OYUN.MOBIL.YAKINLIK;
+        mobilKontrolleriGuncelle();
+    } else {
+        kamera.yakinlik = 1;
     }
 }
 
@@ -155,44 +284,63 @@ function kamerayiGuncelle() {
     kamera.y = Math.max(0, Math.min(kamera.y, OYUN.ALAN.YUKSEKLIK - tuval.height / kamera.yakinlik));
 }
 
-function copAdamCiz(x, y, yukseklik, renk, yon, silahVar, isim = '') {
+function copAdamCiz(x, y, yukseklik, renk, yon, silahVar, isim = '', animasyon = null) {
     const genislik = yukseklik / 4;
+    
+    if (!animasyon) {
+        animasyon = {
+            bacakSallanma: 0,
+            kolSallanma: 0,
+            kafaDonme: 0
+        };
+    }
+    
     cizimAlani.strokeStyle = renk;
-    cizimAlani.lineWidth = 2;
+    cizimAlani.lineWidth = 3;
+    
+    cizimAlani.beginPath();
+    cizimAlani.moveTo(x, y);
+    cizimAlani.lineTo(x - genislik + animasyon.bacakSallanma, y + yukseklik/2);
+    cizimAlani.moveTo(x, y);
+    cizimAlani.lineTo(x + genislik - animasyon.bacakSallanma, y + yukseklik/2);
+    cizimAlani.stroke();
+    
+    cizimAlani.beginPath();
+    cizimAlani.moveTo(x, y - yukseklik/4);
+    cizimAlani.lineTo(x - genislik + animasyon.kolSallanma, y);
+    cizimAlani.moveTo(x, y - yukseklik/4);
+    cizimAlani.lineTo(x + genislik - animasyon.kolSallanma, y);
+    cizimAlani.stroke();
     
     cizimAlani.beginPath();
     cizimAlani.moveTo(x, y - yukseklik/2);
-    cizimAlani.lineTo(x, y + yukseklik/2);
+    cizimAlani.lineTo(x, y);
     cizimAlani.stroke();
     
+    cizimAlani.save();
+    cizimAlani.translate(x, y - yukseklik/2);
+    cizimAlani.rotate(animasyon.kafaDonme * 0.1);
     cizimAlani.beginPath();
-    cizimAlani.arc(x, y - yukseklik/2, genislik, 0, Math.PI * 2);
+    cizimAlani.arc(0, 0, genislik/2, 0, Math.PI * 2);
     cizimAlani.stroke();
-    
-    cizimAlani.beginPath();
-    cizimAlani.moveTo(x - genislik, y - yukseklik/4);
-    cizimAlani.lineTo(x + genislik, y - yukseklik/4);
-    cizimAlani.stroke();
-    
-    cizimAlani.beginPath();
-    cizimAlani.moveTo(x, y + yukseklik/2);
-    cizimAlani.lineTo(x - genislik, y + yukseklik);
-    cizimAlani.moveTo(x, y + yukseklik/2);
-    cizimAlani.lineTo(x + genislik, y + yukseklik);
-    cizimAlani.stroke();
+    cizimAlani.restore();
     
     if (silahVar) {
+        const silahUzunluk = genislik * 2;
+        const silahY = y - yukseklik/4;
+        
+        cizimAlani.strokeStyle = '#666';
+        cizimAlani.lineWidth = 4;
         cizimAlani.beginPath();
-        cizimAlani.moveTo(x, y - yukseklik/4);
-        cizimAlani.lineTo(x + (yon * genislik * 2), y - yukseklik/4);
+        cizimAlani.moveTo(x, silahY);
+        cizimAlani.lineTo(x + (silahUzunluk * yon), silahY + animasyon.kolSallanma * 0.3);
         cizimAlani.stroke();
     }
-
+    
     if (isim) {
-        cizimAlani.fillStyle = renk;
+        cizimAlani.fillStyle = '#fff';
         cizimAlani.font = '16px Arial';
         cizimAlani.textAlign = 'center';
-        cizimAlani.textBaseline = 'bottom';
         cizimAlani.fillText(isim, x, y - yukseklik - 10);
     }
 }
@@ -260,115 +408,191 @@ function masaustuKontrolleriniEkle() {
 
     tuval.addEventListener('mousedown', (e) => {
         if (e.button === 0) {
-            if (oyuncu.silahVar && oyuncu.mermiSayisi > 0) {
-                const rect = tuval.getBoundingClientRect();
-                const mouseX = (e.clientX - rect.left) * (tuval.width / rect.width);
-                const mouseY = (e.clientY - rect.top) * (tuval.height / rect.height);
-                
-                const hedefX = mouseX / kamera.yakinlik + kamera.x;
-                const hedefY = mouseY / kamera.yakinlik + kamera.y;
-                
-                atesEt(hedefX, hedefY);
-            }
+            mouseBasili = true;
+            atesEt(e);
+        }
+    });
+
+    tuval.addEventListener('mouseup', () => {
+        mouseBasili = false;
+    });
+
+    tuval.addEventListener('mousemove', (e) => {
+        if (mouseBasili && oyuncu.silahTip === 'MINIGUN') {
+            atesEt(e);
         }
     });
 }
 
 function mobilKontrolleriniEkle() {
-    let sonAtesZamani = 0;
-    const ATES_GECIKMESI = 200;
+    const joystick = {
+        aktif: false,
+        merkez: { x: 0, y: 0 },
+        konum: { x: 0, y: 0 },
+        parmakID: null,
+        sabitMerkez: { x: 0, y: 0 }
+    };
+
+    const atesButonu = {
+        aktif: false,
+        parmakID: null,
+        x: 0,
+        y: 0,
+        yaricap: OYUN.MOBIL.ATES.YARICAP
+    };
+
+    function joystickKonumunuAyarla() {
+        joystick.sabitMerkez.x = tuval.width * 0.15;
+        joystick.sabitMerkez.y = tuval.height * 0.8;
+        joystick.merkez = {...joystick.sabitMerkez};
+        joystick.konum = {...joystick.sabitMerkez};
+
+        atesButonu.x = tuval.width * 0.85;
+        atesButonu.y = tuval.height * 0.8;
+    }
+
+    function joystickCiz() {
+        cizimAlani.beginPath();
+        cizimAlani.arc(joystick.sabitMerkez.x, joystick.sabitMerkez.y, OYUN.MOBIL.JOYSTICK.YARICAP, 0, Math.PI * 2);
+        cizimAlani.fillStyle = 'rgba(255, 255, 255, 0.2)';
+        cizimAlani.fill();
+
+        if (joystick.aktif) {
+            cizimAlani.beginPath();
+            cizimAlani.arc(joystick.konum.x, joystick.konum.y, OYUN.MOBIL.JOYSTICK.YARICAP * 0.6, 0, Math.PI * 2);
+            cizimAlani.fillStyle = 'rgba(255, 255, 255, 0.5)';
+            cizimAlani.fill();
+        } else {
+            cizimAlani.beginPath();
+            cizimAlani.arc(joystick.sabitMerkez.x, joystick.sabitMerkez.y, OYUN.MOBIL.JOYSTICK.YARICAP * 0.6, 0, Math.PI * 2);
+            cizimAlani.fillStyle = 'rgba(255, 255, 255, 0.3)';
+            cizimAlani.fill();
+        }
+    }
+
+    function atesButonunuCiz() {
+        if (!oyuncu.silahVar) return;
+
+        cizimAlani.beginPath();
+        cizimAlani.arc(atesButonu.x, atesButonu.y, atesButonu.yaricap, 0, Math.PI * 2);
+        cizimAlani.fillStyle = atesButonu.aktif ? 'rgba(255, 50, 50, 0.8)' : 'rgba(255, 50, 50, 0.5)';
+        cizimAlani.fill();
+
+        cizimAlani.fillStyle = '#ffffff';
+        cizimAlani.font = 'bold 20px Arial';
+        cizimAlani.textAlign = 'center';
+        cizimAlani.fillText('ATEŞ', atesButonu.x, atesButonu.y);
+    }
+
+    function silahKontrolEt() {
+        silahlar.forEach((silah, index) => {
+            const ekranKonum = dunyaKonumundanEkranKonumuna(silah.x, silah.y);
+            const oyuncuEkranKonum = dunyaKonumundanEkranKonumuna(oyuncu.x, oyuncu.y);
+            const mesafe = Math.hypot(
+                oyuncuEkranKonum.x - ekranKonum.x, 
+                oyuncuEkranKonum.y - ekranKonum.y
+            );
+            
+            if (mesafe < 60) {
+                oyuncu.silahVar = true;
+                oyuncu.silahTip = silah.tip;
+                oyuncu.mermiSayisi = silah.mermiSayisi;
+                silahlar.splice(index, 1);
+                SES.oynat(SES.ates);
+            }
+        });
+    }
 
     tuval.addEventListener('touchstart', (e) => {
         e.preventDefault();
         const rect = tuval.getBoundingClientRect();
-        const olcek = tuval.width / rect.width;
         
         Array.from(e.touches).forEach(touch => {
-            const x = (touch.clientX - rect.left) * olcek;
-            const y = (touch.clientY - rect.top) * olcek;
+            const x = (touch.clientX - rect.left) * (tuval.width / rect.width);
+            const y = (touch.clientY - rect.top) * (tuval.height / rect.height);
             
-            if (x < tuval.width / 2) {
-                mobilKontroller.joystick.aktif = true;
-                mobilKontroller.joystick.merkez = { x, y };
-                mobilKontroller.joystick.konum = { x, y };
-                mobilKontroller.joystick.touchId = touch.identifier;
+            const joystickMesafe = Math.hypot(x - joystick.sabitMerkez.x, y - joystick.sabitMerkez.y);
+            if (joystickMesafe < OYUN.MOBIL.JOYSTICK.YARICAP * 2 && !joystick.aktif) {
+                joystick.aktif = true;
+                joystick.parmakID = touch.identifier;
+                joystick.konum = {x, y};
             }
-            else {
-                const dx = x - mobilKontroller.atesButonu.x;
-                const dy = y - mobilKontroller.atesButonu.y;
-                if (Math.hypot(dx, dy) < mobilKontroller.atesButonu.yaricap * 1.5) {
-                    mobilKontroller.atesButonu.aktif = true;
-                    mobilKontroller.atesButonu.touchId = touch.identifier;
+            
+            if (oyuncu.silahVar && !atesButonu.aktif) {
+                const atesMesafe = Math.hypot(x - atesButonu.x, y - atesButonu.y);
+                if (atesMesafe < atesButonu.yaricap) {
+                    atesButonu.aktif = true;
+                    atesButonu.parmakID = touch.identifier;
+                    mobilOtomatikAtes = true;
+                    if (oyuncu.silahTip === 'MINIGUN' && !mobilOtomatikAtesInterval) {
+                        mobilOtomatikAtesInterval = setInterval(mobilAkilliAtes, SILAH.MINIGUN.ATES_HIZI);
+                    } else {
+                        mobilAkilliAtes();
+                    }
                 }
             }
         });
-
-        if (mobilKontroller.butonlar.ates.visible) {
-            const atesButonMesafe = Math.hypot(
-                x - mobilKontroller.butonlar.ates.x,
-                y - mobilKontroller.butonlar.ates.y
-            );
-
-            if (atesButonMesafe < mobilKontroller.butonlar.ates.radius) {
-                mobilAkilliAtes();
-            }
-        }
     });
-
-    setInterval(() => {
-        if (mobilKontroller.atesButonu.aktif && oyunDevamEdiyor) {
-            const simdikiZaman = Date.now();
-            if (simdikiZaman - sonAtesZamani >= ATES_GECIKMESI) {
-                otomatikAtes();
-                sonAtesZamani = simdikiZamani;
-            }
-        }
-    }, 50);
 
     tuval.addEventListener('touchmove', (e) => {
         e.preventDefault();
         const rect = tuval.getBoundingClientRect();
-        const olcek = tuval.width / rect.width;
         
         Array.from(e.touches).forEach(touch => {
-            const x = (touch.clientX - rect.left) * olcek;
-            const y = (touch.clientY - rect.top) * olcek;
-            
-            if (mobilKontroller.joystick.aktif && touch.identifier === mobilKontroller.joystick.touchId) {
-                const dx = x - mobilKontroller.joystick.merkez.x;
-                const dy = y - mobilKontroller.joystick.merkez.y;
+            if (touch.identifier === joystick.parmakID) {
+                const x = (touch.clientX - rect.left) * (tuval.width / rect.width);
+                const y = (touch.clientY - rect.top) * (tuval.height / rect.height);
+                
+                const dx = x - joystick.sabitMerkez.x;
+                const dy = y - joystick.sabitMerkez.y;
                 const mesafe = Math.hypot(dx, dy);
-                const maksUzaklik = mobilKontroller.joystick.yaricap;
+                const maksUzaklik = OYUN.MOBIL.JOYSTICK.YARICAP;
                 
                 if (mesafe > maksUzaklik) {
                     const aci = Math.atan2(dy, dx);
-                    mobilKontroller.joystick.konum = {
-                        x: mobilKontroller.joystick.merkez.x + Math.cos(aci) * maksUzaklik,
-                        y: mobilKontroller.joystick.merkez.y + Math.sin(aci) * maksUzaklik
-                    };
+                    joystick.konum.x = joystick.sabitMerkez.x + Math.cos(aci) * maksUzaklik;
+                    joystick.konum.y = joystick.sabitMerkez.y + Math.sin(aci) * maksUzaklik;
                 } else {
-                    mobilKontroller.joystick.konum = { x, y };
+                    joystick.konum = {x, y};
                 }
                 
-                mobilKontroller.joystick.delta = {
-                    x: (mobilKontroller.joystick.konum.x - mobilKontroller.joystick.merkez.x) / maksUzaklik,
-                    y: (mobilKontroller.joystick.konum.y - mobilKontroller.joystick.merkez.y) / maksUzaklik
-                };
+                const hizX = (joystick.konum.x - joystick.sabitMerkez.x) / maksUzaklik;
+                const hizY = (joystick.konum.y - joystick.sabitMerkez.y) / maksUzaklik;
+                
+                oyuncu.x += hizX * oyuncu.hiz * OYUN.MOBIL.JOYSTICK.HASSASIYET;
+                oyuncu.y += hizY * oyuncu.hiz * OYUN.MOBIL.JOYSTICK.HASSASIYET;
+                
+                if (Math.abs(hizX) > 0.1) {
+                    oyuncu.yon = hizX > 0 ? 1 : -1;
+                }
             }
         });
     });
 
     tuval.addEventListener('touchend', (e) => {
         Array.from(e.changedTouches).forEach(touch => {
-            if (touch.identifier === mobilKontroller.joystick.touchId) {
-                mobilKontroller.joystick.aktif = false;
-                mobilKontroller.joystick.delta = { x: 0, y: 0 };
+            if (touch.identifier === joystick.parmakID) {
+                joystick.aktif = false;
+                joystick.konum = {...joystick.sabitMerkez};
             }
-            if (touch.identifier === mobilKontroller.atesButonu.touchId) {
-                mobilKontroller.atesButonu.aktif = false;
+            if (touch.identifier === atesButonu.parmakID) {
+                atesButonu.aktif = false;
+                mobilOtomatikAtes = false;
+                if (mobilOtomatikAtesInterval) {
+                    clearInterval(mobilOtomatikAtesInterval);
+                    mobilOtomatikAtesInterval = null;
+                }
             }
         });
     });
+
+    mobilArayuzCiz = function() {
+        joystickCiz();
+        atesButonunuCiz();
+    };
+
+    window.addEventListener('resize', joystickKonumunuAyarla);
+    joystickKonumunuAyarla();
 }
 
 function oyunMantiginiGuncelle() {
@@ -377,16 +601,11 @@ function oyunMantiginiGuncelle() {
     oyuncuyuHareketEttir();
     
     if (window.innerWidth <= 768) {
-        silahlar.forEach((silah, index) => {
-            const mesafe = Math.hypot(oyuncu.x - silah.x, oyuncu.y - silah.y);
-            if (mesafe < 70) {
-                oyuncu.silahVar = true;
-                oyuncu.mermiSayisi += 30;
-                silahlar.splice(index, 1);
-                SES.oynat(SES.ates);
-                mobilKontroller.butonlar.ates.visible = true;
-            }
-        });
+        silahKontrolEt();
+    }
+    
+    if (silahlar.length < OYUN.SILAH.MAKS_SAYI && Math.random() < 0.01) {
+        silahlar.push(silahOlustur());
     }
 
     dusmanYapayZekasi();
@@ -408,12 +627,11 @@ function oyunuCiz() {
     cizimAlani.strokeRect(0, 0, OYUN.ALAN.GENISLIK, OYUN.ALAN.YUKSEKLIK);
 
     silahlar.forEach(silah => {
-        cizimAlani.fillStyle = '#666';
-        cizimAlani.fillRect(silah.x - 10, silah.y - 5, 20, 10);
+        silahCiz(silah);
     });
 
     dusmanlar.forEach(dusman => {
-        copAdamCiz(dusman.x, dusman.y, dusman.yukseklik, dusman.renk, dusman.yon, dusman.silahVar);
+        dusmanCiz(dusman);
         
         const canYuzde = dusman.can / 100;
         cizimAlani.fillStyle = '#ff0000';
@@ -423,20 +641,12 @@ function oyunuCiz() {
     });
 
     mermiler.forEach(mermi => {
-        cizimAlani.beginPath();
-        cizimAlani.arc(mermi.x, mermi.y, 3, 0, Math.PI * 2);
-        cizimAlani.fillStyle = mermi.dusmanMermisi ? '#ff0000' : '#ffffff';
-        cizimAlani.fill();
+        mermiCiz(mermi);
     });
 
-    copAdamCiz(oyuncu.x, oyuncu.y, oyuncu.yukseklik, oyuncu.renk, oyuncu.yon, oyuncu.silahVar, oyuncuAdi);
+    copAdamCiz(oyuncu.x, oyuncu.y, oyuncu.yukseklik, oyuncu.renk, oyuncu.yon, oyuncu.silahVar, oyuncuAdi, karakterAnimasyonlariniGuncelle());
 
-    parcaciklar.forEach(parcacik => {
-        cizimAlani.beginPath();
-        cizimAlani.arc(parcacik.x, parcacik.y, 2, 0, Math.PI * 2);
-        cizimAlani.fillStyle = `${parcacik.renk}${Math.floor(parcacik.yasam * 255).toString(16).padStart(2, '0')}`;
-        cizimAlani.fill();
-    });
+    parcaciklariCiz();
 
     cizimAlani.restore();
 
@@ -494,59 +704,194 @@ function mobilArayuzCiz() {
 }
 
 function oyunDongusu() {
-    if (!oyunDevamEdiyor && !document.getElementById('olumEkrani')) {
-        olumEkraniGoster();
+    if (!oyunDevamEdiyor) {
+        if (!document.getElementById('olumEkrani')) {
+            olumEkraniGoster();
+        }
         return;
     }
 
-    cizimAlani.clearRect(0, 0, tuval.width, tuval.height);
+    const deltaTime = 1000 / 60;
 
-    if (oyunDevamEdiyor) {
-        oyunMantiginiGuncelle();
-        kamerayiGuncelle();
-        oyunuCiz();
-        parcaciklariGuncelle();
+    cizimAlani.clearRect(0, 0, tuval.width, tuval.height);
+    
+    oyunMantiginiGuncelle(deltaTime);
+    kamerayiGuncelle();
+    oyunuCiz();
+    
+    if (window.innerWidth <= 768) {
+        mobilArayuzCiz();
     }
 
-    animasyonID = requestAnimationFrame(oyunDongusu);
+    if (oyunDevamEdiyor) {
+        animasyonID = requestAnimationFrame(oyunDongusu);
+    }
 }
 
 function olumEkraniGoster() {
-    if (document.getElementById('olumEkrani')) return;
+    const eskiOlumEkrani = document.getElementById('olumEkrani');
+    if (eskiOlumEkrani) eskiOlumEkrani.remove();
 
     const olumEkrani = document.createElement('div');
     olumEkrani.id = 'olumEkrani';
-    olumEkrani.innerHTML = `
-        <div class="olum-icerik">
-            <h2>ÖLDÜN!</h2>
-            <div class="skor-bilgileri">
-                <div class="skor">Skor: ${SKOR.suankiSkor}</div>
-                <div class="en-yuksek">En Yüksek: ${SKOR.enYuksekSkor}</div>
-                <div class="oldurulen">Öldürülen: ${SKOR.oldurulenDusman}</div>
-            </div>
-            <div class="butonlar">
-                <button id="yenidenOyna">Yeniden Oyna</button>
-                <button id="menuDon">Ana Menüye Dön</button>
-            </div>
-        </div>
-    `;
-    document.body.appendChild(olumEkrani);
-
-    document.getElementById('yenidenOyna').addEventListener('click', () => {
-        document.body.removeChild(olumEkrani);
-        reklamGoster();
+    
+    const isMobile = window.innerWidth <= 768;
+    const olcek = isMobile ? Math.min(window.innerWidth, window.innerHeight) / 1200 : 1;
+    
+    Object.assign(olumEkrani.style, {
+        position: 'fixed',
+        top: '0',
+        left: '0',
+        width: '100%',
+        height: '100%',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: 'rgba(0, 0, 0, 0.85)',
+        backdropFilter: 'blur(8px)',
+        zIndex: '1000'
     });
 
-    document.getElementById('menuDon').addEventListener('click', () => {
-        document.body.removeChild(olumEkrani);
-        oyunuSifirla();
+    const icerik = document.createElement('div');
+    Object.assign(icerik.style, {
+        background: 'linear-gradient(145deg, #1a1a1a, #2a2a2a)',
+        padding: `${30 * olcek}px`,
+        borderRadius: '20px',
+        width: isMobile ? '90%' : '400px',
+        maxWidth: '500px',
+        boxShadow: '0 0 50px rgba(255, 85, 85, 0.2)',
+        border: '2px solid rgba(255, 85, 85, 0.3)',
+        animation: 'olumEkraniGoster 0.3s ease-out'
+    });
+
+    const stil = document.createElement('style');
+    stil.textContent = `
+        @keyframes olumEkraniGoster {
+            from { transform: scale(0.8); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+    `;
+    document.head.appendChild(stil);
+
+    const baslik = document.createElement('h2');
+    baslik.textContent = 'ÖLDÜN!';
+    Object.assign(baslik.style, {
+        color: '#ff5555',
+        fontSize: `${45 * olcek}px`,
+        margin: '0 0 30px 0',
+        textAlign: 'center',
+        textTransform: 'uppercase',
+        fontWeight: '900',
+        textShadow: '0 0 20px rgba(255, 85, 85, 0.5)',
+        letterSpacing: '3px'
+    });
+
+    const skorKart = document.createElement('div');
+    Object.assign(skorKart.style, {
+        background: 'rgba(255, 255, 255, 0.05)',
+        borderRadius: '15px',
+        padding: `${20 * olcek}px`,
+        marginBottom: `${25 * olcek}px`
+    });
+
+    const skorBilgileri = [
+        { label: 'Skor', value: SKOR.suankiSkor },
+        { label: 'En Yüksek', value: SKOR.enYuksekSkor },
+        { label: 'Öldürülen', value: SKOR.oldurulenDusman }
+    ];
+
+    skorBilgileri.forEach(({ label, value }, index) => {
+        const satir = document.createElement('div');
+        Object.assign(satir.style, {
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            padding: `${12 * olcek}px`,
+            borderBottom: index !== skorBilgileri.length - 1 ? '1px solid rgba(255, 255, 255, 0.1)' : 'none'
+        });
+
+        const labelEl = document.createElement('span');
+        labelEl.textContent = label;
+        Object.assign(labelEl.style, {
+            color: 'rgba(255, 255, 255, 0.7)',
+            fontSize: `${20 * olcek}px`
+        });
+
+        const valueEl = document.createElement('span');
+        valueEl.textContent = value;
+        Object.assign(valueEl.style, {
+            color: '#fff',
+            fontSize: `${24 * olcek}px`,
+            fontWeight: 'bold'
+        });
+
+        satir.appendChild(labelEl);
+        satir.appendChild(valueEl);
+        skorKart.appendChild(satir);
+    });
+
+    const butonContainer = document.createElement('div');
+    Object.assign(butonContainer.style, {
+        display: 'grid',
+        gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr',
+        gap: '15px',
+        marginTop: '20px'
+    });
+
+    const butonStili = {
+        padding: `${16 * olcek}px`,
+        fontSize: `${20 * olcek}px`,
+        fontWeight: 'bold',
+        color: '#fff',
+        border: 'none',
+        borderRadius: '10px',
+        cursor: 'pointer',
+        transition: 'all 0.2s ease',
+        textTransform: 'uppercase',
+        letterSpacing: '1px'
+    };
+
+    const yenidenBaslatButon = document.createElement('button');
+    yenidenBaslatButon.textContent = 'Yeniden Başlat';
+    Object.assign(yenidenBaslatButon.style, {
+        ...butonStili,
+        background: 'linear-gradient(45deg, #ff5555, #ff3333)',
+        boxShadow: '0 4px 15px rgba(255, 85, 85, 0.3)'
+    });
+
+    const anaMenuButon = document.createElement('button');
+    anaMenuButon.textContent = 'Ana Menü';
+    Object.assign(anaMenuButon.style, {
+        ...butonStili,
+        background: 'rgba(255, 255, 255, 0.1)'
+    });
+
+    [yenidenBaslatButon, anaMenuButon].forEach(buton => {
+        buton.onmouseover = () => {
+            buton.style.transform = 'translateY(-2px)';
+            buton.style.boxShadow = '0 6px 20px rgba(255, 85, 85, 0.4)';
+        };
+        buton.onmouseout = () => {
+            buton.style.transform = 'translateY(0)';
+            buton.style.boxShadow = '0 4px 15px rgba(255, 85, 85, 0.3)';
+        };
+    });
+
+    yenidenBaslatButon.onclick = yenidenBaslat;
+    anaMenuButon.onclick = () => {
+        olumEkrani.remove();
         document.getElementById('girisEkrani').style.display = 'flex';
         tuval.style.display = 'none';
-        if (animasyonID) {
-            cancelAnimationFrame(animasyonID);
-            animasyonID = null;
-        }
-    });
+    };
+
+    butonContainer.appendChild(yenidenBaslatButon);
+    butonContainer.appendChild(anaMenuButon);
+
+    icerik.appendChild(baslik);
+    icerik.appendChild(skorKart);
+    icerik.appendChild(butonContainer);
+    olumEkrani.appendChild(icerik);
+    document.body.appendChild(olumEkrani);
 }
 
 function oyunuSifirla() {
@@ -567,121 +912,195 @@ function oyunuSifirla() {
 
 function oyunBitti() {
     oyunDevamEdiyor = false;
-    SES.oynat(SES.olum);
     
-    cizimAlani.clearRect(0, 0, tuval.width, tuval.height);
-    kamerayiGuncelle();
-    oyunuCiz();
+    if (mobilOtomatikAtesInterval) {
+        clearInterval(mobilOtomatikAtesInterval);
+        mobilOtomatikAtesInterval = null;
+    }
+    
+    if (animasyonID) {
+        cancelAnimationFrame(animasyonID);
+        animasyonID = null;
+    }
+    
+    tuval.removeEventListener('touchstart', mobilKontrolleriniEkle);
+    tuval.removeEventListener('touchmove', mobilKontrolleriniEkle);
+    tuval.removeEventListener('touchend', mobilKontrolleriniEkle);
     
     olumEkraniGoster();
 }
 
-function mermiOlustur(baslangicX, baslangicY, hedefX, hedefY, dusmanMermisiMi = false) {
-    const aci = Math.atan2(hedefY - baslangicY, hedefX - baslangicX);
-    mermiler.push({
-        x: baslangicX,
-        y: baslangicY,
-        hiz: 10,
-        aci: aci,
-        dusmanMermisi: dusmanMermisiMi
-    });
+function mermiOlustur(x, y, hedefX, hedefY, dusmanMermisi = false, dusmanTip = 'NORMAL') {
+    const dx = hedefX - x;
+    const dy = hedefY - y;
+    const aci = Math.atan2(dy, dx);
+    
+    let mermiHiz = dusmanMermisi ? 10 : 
+                   oyuncu.silahTip === 'MINIGUN' ? SILAH.MINIGUN.MERMI_HIZ : SILAH.NORMAL.MERMI_HIZ;
+    
+    let mermiBoyut = dusmanMermisi ? DUSMAN[dusmanTip].MERMI_BOYUT : 
+                     oyuncu.silahTip === 'MINIGUN' ? SILAH.MINIGUN.MERMI_BOYUT : SILAH.NORMAL.MERMI_BOYUT;
+    
+    let mermiRenk = dusmanMermisi ? DUSMAN[dusmanTip].MERMI_RENK :
+                    oyuncu.silahTip === 'MINIGUN' ? SILAH.MINIGUN.MERMI_RENK : SILAH.NORMAL.MERMI_RENK;
+
+    return {
+        x: x,
+        y: y,
+        baslangicX: x,
+        baslangicY: y,
+        hedefX: hedefX,
+        hedefY: hedefY,
+        hizX: Math.cos(aci) * mermiHiz,
+        hizY: Math.sin(aci) * mermiHiz,
+        boyut: mermiBoyut,
+        renk: mermiRenk,
+        dusmanMermisi: dusmanMermisi,
+        dusmanTip: dusmanTip,
+        takipEt: !dusmanMermisi
+    };
 }
 
 function mermileriGuncelle() {
     for (let i = mermiler.length - 1; i >= 0; i--) {
         const mermi = mermiler[i];
         
-        mermi.x += Math.cos(mermi.aci) * mermi.hiz;
-        mermi.y += Math.sin(mermi.aci) * mermi.hiz;
+        if (!mermi.dusmanMermisi) {
+            let hedef = null;
+            let enKisaMesafe = Infinity;
+            
+            dusmanlar.forEach(dusman => {
+                const mesafe = Math.hypot(dusman.x - mermi.x, dusman.y - mermi.y);
+                if (mesafe < 300 && mesafe < enKisaMesafe) {
+                    enKisaMesafe = mesafe;
+                    hedef = dusman;
+                }
+            });
+            
+            if (hedef) {
+                const dx = hedef.x - mermi.x;
+                const dy = hedef.y - mermi.y;
+                const aci = Math.atan2(dy, dx);
+                
+                const takipGucu = oyuncu.silahTip === 'MINIGUN' ? 0.3 : 0.2;
+                const mermiHiz = oyuncu.silahTip === 'MINIGUN' ? 20 : 15;
+                
+                mermi.hizX = Math.cos(aci) * mermiHiz;
+                mermi.hizY = Math.sin(aci) * mermiHiz;
+            }
+        }
         
-        if (mermi.x < 0 || mermi.x > OYUN.ALAN.GENISLIK || 
-            mermi.y < 0 || mermi.y > OYUN.ALAN.YUKSEKLIK) {
+        mermi.x += mermi.hizX;
+        mermi.y += mermi.hizY;
+        
+        if (Math.random() < 0.3) {
+            parcaciklar.push({
+                x: mermi.x,
+                y: mermi.y,
+                hizX: (Math.random() - 0.5) * 2,
+                hizY: (Math.random() - 0.5) * 2,
+                yasam: 0.5,
+                renk: mermi.dusmanMermisi ? '#ff0000' : '#ffffff',
+                boyut: 1
+            });
+        }
+        
+        const mesafe = Math.hypot(mermi.x - mermi.baslangicX, mermi.y - mermi.baslangicY);
+        if (mesafe > 1000 || mermi.x < 0 || mermi.x > OYUN.ALAN.GENISLIK || mermi.y < 0 || mermi.y > OYUN.ALAN.YUKSEKLIK) {
             mermiler.splice(i, 1);
         }
     }
 }
 
 function silahOlustur() {
-    if (silahlar.length < OYUN.SILAH.MAKS_SAYI) {
-        silahlar.push({
-            x: Math.random() * (OYUN.ALAN.GENISLIK - 100) + 50,
-            y: Math.random() * (OYUN.ALAN.YUKSEKLIK - 100) + 50,
-            mermiSayisi: 30
-        });
+    const tip = Math.random() > 0.8 ? 'MINIGUN' : 'NORMAL';
+    const silah = {
+        x: Math.random() * (OYUN.ALAN.GENISLIK - 100) + 50,
+        y: Math.random() * (OYUN.ALAN.YUKSEKLIK - 100) + 50,
+        tip: tip,
+        mermiSayisi: tip === 'MINIGUN' ? 200 : 30
+    };
+
+    const oyuncuMesafe = Math.hypot(silah.x - oyuncu.x, silah.y - oyuncu.y);
+    if (oyuncuMesafe < 200) {
+        return silahOlustur();
     }
+
+    return silah;
 }
 
 function silahAl() {
-    if (window.innerWidth > 768) {
-        silahlar.forEach((silah, index) => {
-            const mesafe = Math.hypot(oyuncu.x - silah.x, oyuncu.y - silah.y);
-            if (mesafe < 50) {
-                oyuncu.silahVar = true;
-                oyuncu.mermiSayisi += 30;
-                silahlar.splice(index, 1);
-                SES.oynat(SES.ates);
-            }
-        });
-    }
-}
-
-function carpismalariKontrolEt() {
-    for (let i = mermiler.length - 1; i >= 0; i--) {
-        const mermi = mermiler[i];
+    silahlar.forEach((silah, index) => {
+        const mesafe = Math.hypot(oyuncu.x - silah.x, oyuncu.y - silah.y);
+        const isMobil = window.innerWidth <= 768;
+        const mesafeLimit = isMobil ? 100 : 50;
         
-        if (!mermi.dusmanMermisi) {
-            for (let j = dusmanlar.length - 1; j >= 0; j--) {
-                const dusman = dusmanlar[j];
-                const mesafe = Math.hypot(mermi.x - dusman.x, mermi.y - dusman.y);
-                
-                if (mesafe < 30) {
-                    dusman.can -= 25;
-                    mermiler.splice(i, 1);
-                    
-                    if (dusman.can <= 0) {
-                        dusmanlar.splice(j, 1);
-                        SKOR.oldurulenDusman++;
-                        SKOR.skorArttir(100);
-                        npcOlustur();
-                    }
-                    break;
-                }
-            }
-        } else {
-            const mesafe = Math.hypot(mermi.x - oyuncu.x, mermi.y - oyuncu.y);
-            if (mesafe < 30) {
-                oyuncu.can -= 10;
-                mermiler.splice(i, 1);
-                if (oyuncu.can <= 0) {
-                    oyunBitti();
-                }
-            }
-        }
-    }
-
-    dusmanlar.forEach(dusman => {
-        const mesafe = Math.hypot(oyuncu.x - dusman.x, oyuncu.y - dusman.y);
-        if (mesafe < 40) {
-            oyuncu.can -= 0.5;
-            if (oyuncu.can <= 0) {
-                oyunBitti();
+        if (mesafe < mesafeLimit) {
+            oyuncu.silahVar = true;
+            oyuncu.silahTip = silah.tip;
+            oyuncu.mermiSayisi = silah.mermiSayisi;
+            silahlar.splice(index, 1);
+            SES.oynat(SES.ates);
+            
+            if (isMobil) {
+                mobilKontroller.butonlar.ates.visible = true;
             }
         }
     });
 }
 
-function kanEfektiOlustur(x, y, renk) {
-    for (let i = 0; i < 8; i++) {
-        const aci = (Math.PI * 2 / 8) * i;
-        const hiz = 2 + Math.random() * 2;
+function carpismalariKontrolEt() {
+    mermiler.forEach((mermi, mermiIndex) => {
+        if (mermi.dusmanMermisi) {
+            const oyuncuMesafe = Math.hypot(oyuncu.x - mermi.x, oyuncu.y - mermi.y);
+            if (oyuncuMesafe < oyuncu.genislik) {
+                mermiler.splice(mermiIndex, 1);
+                const hasar = mermi.dusmanTip === 'BOSS' ? DUSMAN.BOSS.HASAR : DUSMAN.NORMAL.HASAR;
+                oyuncu.can -= hasar;
+                
+                kanEfektiOlustur(mermi.x, mermi.y, 'oyuncu', 16);
+                
+                if (oyuncu.can <= 0) {
+                    kanEfektiOlustur(oyuncu.x, oyuncu.y, 'oyuncu', 24);
+                    oyunBitti();
+                }
+            }
+        } else {
+            dusmanlar.forEach((dusman, dusmanIndex) => {
+                const dusmanMesafe = Math.hypot(dusman.x - mermi.x, dusman.y - mermi.y);
+                if (dusmanMesafe < dusman.genislik) {
+                    mermiler.splice(mermiIndex, 1);
+                    const hasar = oyuncu.silahTip === 'MINIGUN' ? SILAH.MINIGUN.HASAR : SILAH.NORMAL.HASAR;
+                    dusman.can -= hasar;
+                    kanEfektiOlustur(mermi.x, mermi.y, 'dusman', 8);
+                    if (dusman.can <= 0) {
+                        kanEfektiOlustur(dusman.x, dusman.y, 'dusman', 16);
+                        dusmanlar.splice(dusmanIndex, 1);
+                        SKOR.oldurulenDusman++;
+                        SKOR.skorArttir(dusman.tip === 'BOSS' ? 100 : 10);
+                    }
+                }
+            });
+        }
+    });
+}
+
+function kanEfektiOlustur(x, y, tip = 'dusman', miktar = 8) {
+    const renk = tip === 'oyuncu' ? '#ff0000' : '#ffffff';
+    const parcacikBoyutu = tip === 'oyuncu' ? 3 : 2;
+    
+    for (let i = 0; i < miktar; i++) {
+        const aci = (Math.PI * 2 / miktar) * i + (Math.random() * 0.5);
+        const hiz = 2 + Math.random() * 3;
         
         parcaciklar.push({
             x: x,
             y: y,
-            hiz: hiz,
-            aci: aci,
+            hizX: Math.cos(aci) * hiz,
+            hizY: Math.sin(aci) * hiz,
             yasam: 1,
-            renk: renk
+            renk: renk,
+            boyut: parcacikBoyutu + Math.random() * 2
         });
     }
 }
@@ -690,14 +1109,27 @@ function parcaciklariGuncelle() {
     for (let i = parcaciklar.length - 1; i >= 0; i--) {
         const parcacik = parcaciklar[i];
         
-        parcacik.x += Math.cos(parcacik.aci) * parcacik.hiz;
-        parcacik.y += Math.sin(parcacik.aci) * parcacik.hiz;
+        parcacik.x += parcacik.hizX;
+        parcacik.y += parcacik.hizY;
+        parcacik.hizX *= 0.98;
+        parcacik.hizY *= 0.98;
         parcacik.yasam -= 0.02;
+        
+        parcacik.hizY += 0.1;
         
         if (parcacik.yasam <= 0) {
             parcaciklar.splice(i, 1);
         }
     }
+}
+
+function parcaciklariCiz() {
+    parcaciklar.forEach(parcacik => {
+        cizimAlani.beginPath();
+        cizimAlani.arc(parcacik.x, parcacik.y, parcacik.boyut, 0, Math.PI * 2);
+        cizimAlani.fillStyle = `${parcacik.renk}${Math.floor(parcacik.yasam * 255).toString(16).padStart(2, '0')}`;
+        cizimAlani.fill();
+    });
 }
 
 function miniHaritaCiz() {
@@ -767,8 +1199,8 @@ function oyunaBasla() {
         alert('Lütfen bir kullanıcı adı girin!');
         return;
     }
+    
     oyuncuAdi = ad;
-
     document.getElementById('girisEkrani').style.display = 'none';
     tuval.style.display = 'block';
 
@@ -782,58 +1214,71 @@ function oyunaBasla() {
     oyuncu.mermiSayisi = 0;
 
     dusmanlar = [];
-    for(let i = 0; i < OYUN.DUSMAN.SAYI; i++) {
-        npcOlustur();
-    }
-
     silahlar = [];
+    
+    for(let i = 0; i < OYUN.DUSMAN.SAYI; i++) {
+        dusmanlar.push(dusmanOlustur('NORMAL'));
+    }
+    
     for(let i = 0; i < OYUN.SILAH.MAKS_SAYI; i++) {
-        silahOlustur();
+        silahlar.push(silahOlustur());
     }
 
-    if (window.innerWidth > 768) {
-        masaustuKontrolleriniEkle();
-    } else {
+    if (window.innerWidth <= 768) {
         mobilKontrolleriniEkle();
-    }
-
-    SKOR.suankiSkor = 0;
-    SKOR.oldurulenDusman = 0;
-
-    if (animasyonID) {
-        cancelAnimationFrame(animasyonID);
-        animasyonID = null;
+    } else {
+        masaustuKontrolleriniEkle();
     }
 
     oyunDevamEdiyor = true;
-    animasyonID = requestAnimationFrame(oyunDongusu);
+    kamerayiGuncelle();
+    oyunDongusu();
 }
 
 function arayuzCiz() {
     const isMobil = window.innerWidth <= 768;
-    const olcek = isMobil ? OYUN.MOBIL.ARAYUZ_OLCEK : 1;
     
     cizimAlani.save();
     cizimAlani.setTransform(1, 0, 0, 1, 0, 0);
     
-    cizimAlani.fillStyle = 'rgba(0, 0, 0, 0.5)';
-    cizimAlani.fillRect(10, 10, 200 * olcek, 130 * olcek);
-    
-    cizimAlani.fillStyle = '#ffffff';
-    cizimAlani.font = `bold ${24 * olcek}px Arial`;
-    cizimAlani.textAlign = 'left';
-    cizimAlani.textBaseline = 'top';
-    
-    const yOffset = 20 * olcek;
-    const satirAraligi = 30 * olcek;
+    if (isMobil) {
 
-    cizimAlani.fillText(`Can: ${Math.ceil(oyuncu.can)}`, 20, yOffset);
-    
-    cizimAlani.fillText(`Mermi: ${oyuncu.mermiSayisi}`, 20, yOffset + satirAraligi);
-    
-    cizimAlani.fillText(`Skor: ${SKOR.suankiSkor}`, 20, yOffset + satirAraligi * 2);
-    
-    cizimAlani.fillText(`Öldürülen: ${SKOR.oldurulenDusman}`, 20, yOffset + satirAraligi * 3);
+        const olcek = Math.min(window.innerWidth, window.innerHeight) / 800;
+        const panelGenislik = 160 * olcek;
+        const panelYukseklik = 120 * olcek;
+        const kenarBosluk = 15 * olcek;
+        const yaziBoyu = 18 * olcek; 
+        const satirAraligi = 24 * olcek; 
+
+        cizimAlani.fillStyle = 'rgba(0, 0, 0, 0.6)';
+        cizimAlani.fillRect(kenarBosluk, kenarBosluk, panelGenislik, panelYukseklik);
+
+        cizimAlani.fillStyle = '#ffffff';
+        cizimAlani.font = `bold ${yaziBoyu}px Arial`;
+        cizimAlani.textAlign = 'left';
+        cizimAlani.textBaseline = 'top';
+
+        const yBaslangic = kenarBosluk + 8 * olcek;
+        const xBaslangic = kenarBosluk + 8 * olcek;
+        
+        cizimAlani.fillText(`Can: ${Math.ceil(oyuncu.can)}`, xBaslangic, yBaslangic);
+        cizimAlani.fillText(`Mermi: ${oyuncu.mermiSayisi}`, xBaslangic, yBaslangic + satirAraligi);
+        cizimAlani.fillText(`Skor: ${SKOR.suankiSkor}`, xBaslangic, yBaslangic + satirAraligi * 2);
+        cizimAlani.fillText(`Öld: ${SKOR.oldurulenDusman}`, xBaslangic, yBaslangic + satirAraligi * 3);
+    } else {
+        cizimAlani.fillStyle = 'rgba(0, 0, 0, 0.5)';
+        cizimAlani.fillRect(10, 10, 200, 130);
+        
+        cizimAlani.fillStyle = '#ffffff';
+        cizimAlani.font = 'bold 24px Arial';
+        cizimAlani.textAlign = 'left';
+        cizimAlani.textBaseline = 'top';
+        
+        cizimAlani.fillText(`Can: ${Math.ceil(oyuncu.can)}`, 20, 20);
+        cizimAlani.fillText(`Mermi: ${oyuncu.mermiSayisi}`, 20, 50);
+        cizimAlani.fillText(`Skor: ${SKOR.suankiSkor}`, 20, 80);
+        cizimAlani.fillText(`Öldürülen: ${SKOR.oldurulenDusman}`, 20, 110);
+    }
     
     cizimAlani.restore();
 }
@@ -858,15 +1303,32 @@ function izgaraCiz() {
     }
 }
 
-function atesEt(hedefX, hedefY) {
+function atesEt(e) {
     if (!oyuncu.silahVar || oyuncu.mermiSayisi <= 0) return;
-    
-    mermiOlustur(oyuncu.x, oyuncu.y, hedefX, hedefY);
-    oyuncu.mermiSayisi--;
-    SES.oynat(SES.ates);
-    
-    if (oyuncu.mermiSayisi <= 0) {
-        oyuncu.silahVar = false;
+
+    const simdikiZaman = Date.now();
+    const atesAraligi = oyuncu.silahTip === 'MINIGUN' ? SILAH.MINIGUN.ATES_HIZI : SILAH.NORMAL.ATES_HIZI;
+
+    if (simdikiZaman - sonAtesZamani > atesAraligi) {
+        const rect = tuval.getBoundingClientRect();
+        const mouseX = (e.clientX - rect.left) * (tuval.width / rect.width);
+        const mouseY = (e.clientY - rect.top) * (tuval.height / rect.height);
+        
+        const hedefX = mouseX / kamera.yakinlik + kamera.x;
+        const hedefY = mouseY / kamera.yakinlik + kamera.y;
+
+        const mermi = mermiOlustur(oyuncu.x, oyuncu.y, hedefX, hedefY);
+        mermiler.push(mermi);
+        oyuncu.mermiSayisi--;
+        sonAtesZamani = simdikiZaman;
+        SES.oynat(SES.ates);
+
+        kanEfektiOlustur(oyuncu.x, oyuncu.y, '#ffff00', 4);
+
+        if (oyuncu.mermiSayisi <= 0) {
+            oyuncu.silahVar = false;
+            mouseBasili = false;
+        }
     }
 }
 
@@ -907,63 +1369,126 @@ function npcOlustur() {
 }
 
 function yenidenBaslat() {
-    oyunuSifirla();
+    const olumEkrani = document.getElementById('olumEkrani');
+    if (olumEkrani) {
+        olumEkrani.remove();
+    }
+
+    if (mobilOtomatikAtesInterval) {
+        clearInterval(mobilOtomatikAtesInterval);
+        mobilOtomatikAtesInterval = null;
+    }
+    if (animasyonID) {
+        cancelAnimationFrame(animasyonID);
+        animasyonID = null;
+    }
+
+    oyunDevamEdiyor = false;
+    mouseBasili = false;
+    sonAtesZamani = 0;
+    animasyonZamani = 0;
+    mobilOtomatikAtes = false;
+
+    oyuncu.x = OYUN.ALAN.GENISLIK / 2;
+    oyuncu.y = OYUN.ALAN.YUKSEKLIK / 2;
+    oyuncu.can = 100;
+    oyuncu.silahVar = false;
+    oyuncu.mermiSayisi = 0;
+    oyuncu.hiz = 5;
+    oyuncu.yon = 1;
+
+    dusmanlar = [];
+    silahlar = [];
+    mermiler = [];
+    parcaciklar = [];
+    
+    SKOR.suankiSkor = 0;
+    SKOR.oldurulenDusman = 0;
+    
+    kamera.x = 0;
+    kamera.y = 0;
+    kamera.yakinlik = window.innerWidth <= 768 ? OYUN.MOBIL.YAKINLIK : 1;
+    
+    canvasiBoyutlandir();
+    
+    for(let i = 0; i < OYUN.DUSMAN.SAYI; i++) {
+        const dusman = dusmanOlustur('NORMAL');
+        dusman.hiz = OYUN.DUSMAN.HIZ;
+        dusmanlar.push(dusman);
+    }
+    
+    for(let i = 0; i < OYUN.SILAH.MAKS_SAYI; i++) {
+        silahlar.push(silahOlustur());
+    }
+    
+    if (window.innerWidth <= 768) {
+        mobilKontrolleriniEkle();
+    } else {
+        masaustuKontrolleriniEkle();
+    }
+    
     oyunDevamEdiyor = true;
     
-    if (!animasyonID) {
-        animasyonID = requestAnimationFrame(oyunDongusu);
+    if (animasyonID) {
+        cancelAnimationFrame(animasyonID);
     }
+    animasyonID = requestAnimationFrame(oyunDongusu);
 }
 
 function dusmanYapayZekasi() {
+    let bossVarMi = false;
+    
     dusmanlar.forEach((dusman, index) => {
+        if (dusman.tip === 'BOSS') bossVarMi = true;
+        
         const dx = oyuncu.x - dusman.x;
         const dy = oyuncu.y - dusman.y;
         const mesafe = Math.hypot(dx, dy);
-        const aci = Math.atan2(dy, dx);
         
-        let yeniX = dusman.x + Math.cos(aci) * dusman.hiz;
-        let yeniY = dusman.y + Math.sin(aci) * dusman.hiz;
-
-        let carpismaDurumu = false;
-        dusmanlar.forEach((digerDusman, digerIndex) => {
-            if (index !== digerIndex) {
-                const dusmanMesafe = Math.hypot(
-                    yeniX - digerDusman.x,
-                    yeniY - digerDusman.y
+        if (mesafe < OYUN.DUSMAN.GORUS_MESAFESI) {
+            const aci = Math.atan2(dy, dx);
+            
+            if (mesafe > 200) {
+                dusman.x += Math.cos(aci) * dusman.hiz;
+                dusman.y += Math.sin(aci) * dusman.hiz;
+            } else if (mesafe < 150) {
+                dusman.x -= Math.cos(aci) * dusman.hiz;
+                dusman.y -= Math.sin(aci) * dusman.hiz;
+            }
+            
+            const simdikiZaman = Date.now();
+            if (simdikiZaman - dusman.sonAtesZamani > dusman.atesAraligi) {
+                const mermi = mermiOlustur(
+                    dusman.x, 
+                    dusman.y, 
+                    oyuncu.x, 
+                    oyuncu.y, 
+                    true, 
+                    dusman.tip
                 );
-                
-                if (dusmanMesafe < dusman.genislik * 3) {
-                    carpismaDurumu = true;
-                    const kacisAci = Math.atan2(dusman.y - digerDusman.y, dusman.x - digerDusman.x);
-                    yeniX += Math.cos(kacisAci) * dusman.hiz;
-                    yeniY += Math.sin(kacisAci) * dusman.hiz;
-                }
-            }
-        });
-        
-        if (!carpismaDurumu) {
-            if (mesafe < 300) {
-                yeniX -= Math.cos(aci) * dusman.hiz * 0.5;
-                yeniY -= Math.sin(aci) * dusman.hiz * 0.5;
-            }
-        }
-        
-        dusman.x = Math.max(dusman.genislik, Math.min(OYUN.ALAN.GENISLIK - dusman.genislik, yeniX));
-        dusman.y = Math.max(dusman.yukseklik, Math.min(OYUN.ALAN.YUKSEKLIK - dusman.yukseklik, yeniY));
-        
-        dusman.yon = dx > 0 ? 1 : -1;
-        
-        const simdikiZaman = Date.now();
-        if (simdikiZaman - dusman.sonAtesZamani > dusman.atesAraligi) {
-            if (Math.random() < 0.7) {
-                mermiOlustur(dusman.x, dusman.y, oyuncu.x, oyuncu.y, true);
+                mermiler.push(mermi);
                 dusman.sonAtesZamani = simdikiZaman;
                 
-                dusman.atesAraligi = OYUN.DUSMAN.ATES_SURESI + Math.random() * 1000;
+                if (dusman.tip === 'BOSS') {
+                    dusman.atesAraligi = OYUN.DUSMAN.ATES_SURESI * 0.75;
+                }
             }
         }
+        
+        dusman.x = Math.max(dusman.genislik, Math.min(OYUN.ALAN.GENISLIK - dusman.genislik, dusman.x));
+        dusman.y = Math.max(dusman.yukseklik, Math.min(OYUN.ALAN.YUKSEKLIK - dusman.yukseklik, dusman.y));
+        
+        dusman.yon = dx > 0 ? 1 : -1;
     });
+    
+    const normalDusmanSayisi = dusmanlar.filter(d => d.tip === 'NORMAL').length;
+    if (normalDusmanSayisi < OYUN.DUSMAN.SAYI) {
+        dusmanlar.push(dusmanOlustur('NORMAL'));
+    }
+    
+    if (!bossVarMi && Math.random() < 0.005) {
+        dusmanlar.push(dusmanOlustur('BOSS'));
+    }
 }
 
 function oyuncuyuHareketEttir() {
@@ -1003,94 +1528,246 @@ function mobilAkilliAtes() {
     });
 
     if (enYakinDusman) {
-        const atesX = enYakinDusman.x + (enYakinDusman.hiz * Math.cos(enYakinDusman.aci) * 10);
-        const atesY = enYakinDusman.y + (enYakinDusman.hiz * Math.sin(enYakinDusman.aci) * 10);
-        mermiOlustur(oyuncu.x, oyuncu.y, atesX, atesY);
-        oyuncu.mermiSayisi--;
+        const tahminX = enYakinDusman.x + (enYakinDusman.hizX || 0) * 10;
+        const tahminY = enYakinDusman.y + (enYakinDusman.hizY || 0) * 10;
         
-        const sesEfekti = new Audio('ses/ates.mp3');
-        sesEfekti.volume = 0.5;
-        sesEfekti.play().catch(err => console.log('Ses çalma hatası:', err));
+        const mermi = mermiOlustur(oyuncu.x, oyuncu.y, tahminX, tahminY);
+        mermiler.push(mermi);
+        oyuncu.mermiSayisi--;
+        SES.oynat(SES.ates);
 
         if (oyuncu.mermiSayisi <= 0) {
             oyuncu.silahVar = false;
-            mobilKontroller.butonlar.ates.visible = false;
+            if (mobilOtomatikAtesInterval) {
+                clearInterval(mobilOtomatikAtesInterval);
+                mobilOtomatikAtesInterval = null;
+            }
         }
     }
 }
 
-function reklamGoster() {
-    const reklamPopup = document.getElementById('reklamPopup');
-    const reklamGecBtn = document.getElementById('reklamGec');
-    const sayac = document.querySelector('.sayac');
-    const reklamAlan = document.querySelector('.reklam-alan');
-    
-    reklamAlan.innerHTML = '';
-    
-    const reklamTipi = Math.random() > 0.5 ? 'video' : 'gorsel';
-    
-    if (reklamTipi === 'video') {
-        const video = document.createElement('video');
-        video.style.width = '100%';
-        video.style.height = '100%';
-        video.style.objectFit = 'contain';
-        video.style.borderRadius = '10px';
-        video.autoplay = true;
-        video.muted = true;
-        video.playsInline = true;
+function dusmanCiz(dusman) {
+    if (dusman.tip === 'BOSS') {
+        const x = dusman.x;
+        const y = dusman.y;
+        const genislik = dusman.genislik;
+        const yukseklik = dusman.yukseklik;
         
-        const source = document.createElement('source');
-        source.src = 'gorsel/reklam.mp4';
-        source.type = 'video/mp4';
+        cizimAlani.fillStyle = '#ff0000';
+        cizimAlani.font = 'bold 20px Arial';
+        cizimAlani.textAlign = 'center';
+        cizimAlani.fillText(DUSMAN.BOSS.ISIM, x, y - yukseklik - 20);
         
-        video.appendChild(source);
-        reklamAlan.appendChild(video);
+        cizimAlani.strokeStyle = '#990000';
+        cizimAlani.lineWidth = 8;
         
-        video.onended = () => {
-            reklamPopup.style.display = 'none';
-            yenidenBaslat();
-        };
+        cizimAlani.beginPath();
+        cizimAlani.moveTo(x, y);
+        cizimAlani.lineTo(x - genislik/2, y + yukseklik/2);
+        cizimAlani.moveTo(x, y);
+        cizimAlani.lineTo(x + genislik/2, y + yukseklik/2);
+        cizimAlani.stroke();
+        
+        cizimAlani.beginPath();
+        cizimAlani.moveTo(x, y - yukseklik/4);
+        cizimAlani.lineTo(x - genislik, y);
+        cizimAlani.moveTo(x, y - yukseklik/4);
+        cizimAlani.lineTo(x + genislik, y);
+        cizimAlani.stroke();
+        
+        cizimAlani.beginPath();
+        cizimAlani.moveTo(x, y - yukseklik/2);
+        cizimAlani.lineTo(x, y);
+        cizimAlani.stroke();
+        
+        cizimAlani.fillStyle = '#ffffff';
+        cizimAlani.beginPath();
+        cizimAlani.arc(x, y - yukseklik/2, genislik/2, 0, Math.PI * 2);
+        cizimAlani.fill();
+        cizimAlani.stroke();
+        
+        cizimAlani.fillStyle = '#00ff00';
+        cizimAlani.beginPath();
+        cizimAlani.arc(x, y - yukseklik/2 - genislik/4, genislik/2, 0, Math.PI, true);
+        cizimAlani.fill();
+        
+        cizimAlani.fillStyle = '#ff0000';
+        cizimAlani.beginPath();
+        cizimAlani.arc(x, y - yukseklik/2 + genislik/6, genislik/4, 0, Math.PI, false);
+        cizimAlani.fill();
+        
+        cizimAlani.fillStyle = '#000000';
+        cizimAlani.beginPath();
+        cizimAlani.arc(x - genislik/6, y - yukseklik/2, genislik/8, 0, Math.PI * 2);
+        cizimAlani.arc(x + genislik/6, y - yukseklik/2, genislik/8, 0, Math.PI * 2);
+        cizimAlani.fill();
+        
+        const silahUzunluk = genislik * 2;
+        const silahGenislik = genislik / 2;
+        const silahY = y - yukseklik/4;
+        
+        cizimAlani.fillStyle = '#333';
+        cizimAlani.fillRect(
+            x + (genislik/2 * dusman.yon),
+            silahY - silahGenislik/2,
+            silahUzunluk * dusman.yon,
+            silahGenislik
+        );
+        
+        cizimAlani.fillStyle = '#222';
+        cizimAlani.fillRect(
+            x + ((genislik/2 + silahUzunluk) * dusman.yon),
+            silahY - silahGenislik/4,
+            (silahUzunluk/2) * dusman.yon,
+            silahGenislik/2
+        );
+        
+        cizimAlani.fillStyle = '#ff0000';
+        cizimAlani.fillRect(
+            x + (genislik/2 * dusman.yon),
+            silahY + silahGenislik/2,
+            (silahUzunluk/3) * dusman.yon,
+            silahGenislik/4
+        );
+        
     } else {
-        const img = document.createElement('img');
-        img.style.width = '100%';
-        img.style.height = '100%';
-        img.style.objectFit = 'contain';
-        img.style.borderRadius = '10px';
-        img.src = 'gorsel/reklam.png';
+        copAdamCiz(dusman.x, dusman.y, dusman.yukseklik, DUSMAN.NORMAL.RENK, dusman.yon, true);
+    }
+}
+
+function silahCiz(silah) {
+    const genislik = 40;
+    const yukseklik = 20;
+    
+    cizimAlani.save();
+    cizimAlani.globalAlpha = 0.3;
+    cizimAlani.beginPath();
+    cizimAlani.arc(silah.x, silah.y, 60, 0, Math.PI * 2);
+    cizimAlani.fillStyle = silah.tip === 'MINIGUN' ? '#ff3333' : '#ffffff';
+    cizimAlani.fill();
+    cizimAlani.restore();
+    
+    if (silah.tip === 'MINIGUN') {
+        cizimAlani.fillStyle = SILAH.MINIGUN.SILAH_RENK;
+        cizimAlani.fillRect(silah.x - genislik/2, silah.y - yukseklik/2, genislik, yukseklik);
         
-        reklamAlan.appendChild(img);
+        cizimAlani.fillStyle = '#990000';
+        cizimAlani.fillRect(silah.x + genislik/2, silah.y - yukseklik/4, genislik/2, yukseklik/2);
+        
+        cizimAlani.fillStyle = '#ffff00';
+        cizimAlani.fillRect(silah.x - genislik/2, silah.y + yukseklik/2, genislik/3, yukseklik/3);
+    } else {
+        cizimAlani.fillStyle = SILAH.NORMAL.SILAH_RENK;
+        cizimAlani.fillRect(silah.x - genislik/2, silah.y - yukseklik/2, genislik, yukseklik);
     }
     
-    reklamPopup.style.display = 'flex';
-    let kalanSure = 15;
-    let gecSuresi = 5;
+    cizimAlani.fillStyle = '#ffffff';
+    cizimAlani.font = '16px Arial';
+    cizimAlani.textAlign = 'center';
+    cizimAlani.fillText(silah.mermiSayisi, silah.x, silah.y - yukseklik);
+}
+
+function mermiCiz(mermi) {
+    cizimAlani.beginPath();
+    cizimAlani.arc(mermi.x, mermi.y, mermi.boyut, 0, Math.PI * 2);
+    cizimAlani.fillStyle = mermi.renk;
+    cizimAlani.fill();
+}
+
+function dusmanOlustur(tip = 'NORMAL') {
+    const dusman = {
+        x: 0,
+        y: 0,
+        genislik: DUSMAN[tip].BOYUT.w,
+        yukseklik: DUSMAN[tip].BOYUT.h,
+        hiz: DUSMAN[tip].HIZ,
+        can: DUSMAN[tip].CAN,
+        yon: 1,
+        tip: tip,
+        sonAtesZamani: Date.now(),
+        atesAraligi: OYUN.DUSMAN.ATES_SURESI
+    };
+
+    const kenar = Math.floor(Math.random() * 4);
+    switch(kenar) {
+        case 0:
+            dusman.x = Math.random() * OYUN.ALAN.GENISLIK;
+            dusman.y = -dusman.yukseklik;
+            break;
+        case 1:
+            dusman.x = OYUN.ALAN.GENISLIK + dusman.genislik;
+            dusman.y = Math.random() * OYUN.ALAN.YUKSEKLIK;
+            break;
+        case 2:
+            dusman.x = Math.random() * OYUN.ALAN.GENISLIK;
+            dusman.y = OYUN.ALAN.YUKSEKLIK + dusman.yukseklik;
+            break;
+        case 3:
+            dusman.x = -dusman.genislik;
+            dusman.y = Math.random() * OYUN.ALAN.YUKSEKLIK;
+            break;
+    }
+    return dusman;
+}
+
+function karakterAnimasyonlariniGuncelle() {
+    animasyonZamani += ANIMASYON.YURUME_HIZI;
+    kafaDonmeAcisi += ANIMASYON.KAFA_DONME;
     
-    const sayacInterval = setInterval(() => {
-        kalanSure--;
-        sayac.textContent = kalanSure;
-        
-        if (kalanSure <= 10) {
-            gecSuresi--;
-            reklamGecBtn.textContent = `Reklamı Geç (${gecSuresi})`;
-            
-            if (gecSuresi <= 0) {
-                reklamGecBtn.disabled = false;
-                reklamGecBtn.textContent = 'Reklamı Geç';
-            }
-        }
-        
-        if (kalanSure <= 0) {
-            clearInterval(sayacInterval);
-            reklamPopup.style.display = 'none';
-            yenidenBaslat();
-        }
-    }, 1000);
+    const bacakSallanma = Math.sin(animasyonZamani) * ANIMASYON.SALLANMA_MIKTARI;
+    const kolSallanma = Math.cos(animasyonZamani) * ANIMASYON.SALLANMA_MIKTARI;
     
-    reklamGecBtn.addEventListener('click', () => {
-        if (!reklamGecBtn.disabled) {
-            clearInterval(sayacInterval);
-            reklamPopup.style.display = 'none';
-            yenidenBaslat();
+    return { bacakSallanma, kolSallanma, kafaDonme: Math.sin(kafaDonmeAcisi) };
+}
+
+function mobilAtesSisteminiGuncelle() {
+    const atesButonu = document.getElementById('mobilAtesButonu');
+    if (!atesButonu) return;
+
+    atesButonu.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        if (!oyuncu.silahVar || oyuncu.mermiSayisi <= 0) return;
+
+        if (oyuncu.silahTip === 'MINIGUN') {
+            mobilOtomatikAtes = true;
+            mobilAtesInterval = setInterval(() => {
+                if (mobilOtomatikAtes) {
+                    mobilAkilliAtes();
+                }
+            }, SILAH.MINIGUN.ATES_HIZI);
+        } else {
+            mobilAkilliAtes();
         }
     });
+
+    atesButonu.addEventListener('touchend', () => {
+        mobilOtomatikAtes = false;
+        if (mobilAtesInterval) {
+            clearInterval(mobilAtesInterval);
+            mobilAtesInterval = null;
+        }
+    });
+}
+
+function dunyaKonumundanEkranKonumuna(x, y) {
+    return {
+        x: (x - kamera.x) * kamera.yakinlik,
+        y: (y - kamera.y) * kamera.yakinlik
+    };
+}
+
+function mobilKontrolleriGuncelle() {
+    if (!window.innerWidth <= 768) return;
+
+    const tuvalGenislik = tuval.width;
+    const tuvalYukseklik = tuval.height;
+
+    OYUN.MOBIL.JOYSTICK.KONUM.Y = tuvalYukseklik * 0.8;
+
+    OYUN.MOBIL.ATES.KONUM.X = tuvalGenislik * 0.85;
+    OYUN.MOBIL.ATES.KONUM.Y = tuvalYukseklik * 0.8;
+
+    const olcek = Math.min(tuvalGenislik, tuvalYukseklik) / 1000;
+    OYUN.MOBIL.JOYSTICK.YARICAP = 60 * olcek;
+    OYUN.MOBIL.ATES.YARICAP = 50 * olcek;
 }
