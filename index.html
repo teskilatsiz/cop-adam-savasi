@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Çöp Adam Savaşı | Teşkilatsız</title>
+    <meta name="description" content="Çöp Adam Savaşı - Eğlenceli bir 2D aksiyon oyunu. Silahını kap ve düşmanlarla savaş!">
+    <meta name="keywords" content="çöp adam, savaş oyunu, aksiyon oyunu, tarayıcı oyunu, html5 oyun">
+    <meta name="author" content="Teşkilatsız">
+    
+    <meta property="og:title" content="Çöp Adam Savaşı">
+    <meta property="og:description" content="Eğlenceli bir 2D aksiyon oyunu. Silahını kap ve düşmanlarla savaş!">
+    <meta property="og:image" content="https://i.hizliresim.com/clsyyu6.png">
+    <meta property="og:url" content="https://cop-adam-savasi.netlify.app/">
+    <meta property="og:type" content="website">
+    
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Çöp Adam Savaşı">
+    <meta name="twitter:description" content="Eğlenceli bir 2D aksiyon oyunu. Silahını kap ve düşmanlarla savaş!">
+    <meta name="twitter:image" content="https://i.hizliresim.com/clsyyu6.png">
+    
+    <link rel="icon" type="image/png" href="gorsel/favicon.png">
+    <link rel="stylesheet" href="stil.css">
+<body>
+    <div id="girisEkrani">
+        <h1>Çöp Adam Savaşı</h1>
+        <input type="text" id="kullaniciAdi" placeholder="Kullanıcı adını gir" maxlength="15">
+        <button id="baslatButonu">Oyuna Başla</button>
+        
+        <div class="kontroller">
+            <h3>Kontroller</h3>
+            <div class="kontrolGrid">
+                <div>Hareket</div>
+                <div><span class="kontrolTus">W</span> <span class="kontrolTus">A</span> <span class="kontrolTus">S</span> <span class="kontrolTus">D</span></div>
+                <div>Silah Al/Bırak</div>
+                <div><span class="kontrolTus">Sağ Tık</span></div>
+                <div>Nişan Al</div>
+                <div><span class="kontrolTus">Mouse ile hedefle</span></div>
+                <div>Ateş Et</div>
+                <div><span class="kontrolTus">Sol Tık</span></div>
+            </div>
+        </div>
+
+        <div class="gelistirici">
+            Geliştirici: <span>Teşkilatsız</span>
+        </div>
+    </div>
+
+    <canvas id="oyunAlani"></canvas>
+
+    <div id="mobilUyari">
+        <h2>Lütfen telefonunuzu yatay konuma çevirin</h2>
+        <div class="telefonDondurmeIkonu"></div>
+        <button onclick="this.parentElement.style.display='none'">Tamam</button>
+    </div>
+
+    <div id="reklamPopup" style="display: none;">
+        <div class="reklam-icerik">
+            <div class="reklam-baslik">
+                <h3>Reklam</h3>
+                <div class="sayac">15</div>
+            </div>
+            <div class="reklam-alan">
+                <div class="yukleniyor">Reklam yükleniyor...</div>
+            </div>
+            <button id="reklamGec" class="reklam-gec" disabled>Reklamı Geç (5)</button>
+        </div>
+    </div>
+
+    <script src="oyun.js"></script>
+    <script>
+        document.getElementById('baslatButonu').addEventListener('click', oyunaBasla);
+        document.getElementById('kullaniciAdi').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                oyunaBasla();
+            }
+        });
+    </script>
+</body>
+</html> 

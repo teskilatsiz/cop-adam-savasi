@@ -1,0 +1,441 @@
+:root {
+    --arkaplan-renk: #000;
+    --yazi-renk: #fff;
+    --vurgu-renk: #ff5555;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    background: var(--arkaplan-renk);
+    color: var(--yazi-renk);
+    font-family: Arial, sans-serif;
+    overflow: hidden;
+    touch-action: none;
+}
+
+#girisEkrani {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    background: var(--arkaplan-renk);
+    z-index: 100;
+    padding: 20px;
+}
+
+#girisEkrani h1 {
+    font-size: min(2.5em, 10vw);
+    margin-bottom: 1em;
+    color: var(--vurgu-renk);
+    text-align: center;
+    animation: yukaridanGel 0.8s ease-out;
+}
+
+#kullaniciAdi {
+    padding: 15px 20px;
+    font-size: min(1.2em, 5vw);
+    margin-bottom: 1em;
+    border: 2px solid var(--vurgu-renk);
+    background: transparent;
+    color: var(--yazi-renk);
+    border-radius: 10px;
+    width: 90%;
+    max-width: 300px;
+    text-align: center;
+    animation: olceklenGel 0.8s ease-out 0.2s both;
+    box-shadow: 0 0 20px rgba(255, 85, 85, 0.1);
+    transition: all 0.3s ease;
+}
+
+#kullaniciAdi:focus {
+    box-shadow: 0 0 30px rgba(255, 85, 85, 0.2);
+    transform: scale(1.02);
+}
+
+#baslatButonu {
+    padding: 15px 30px;
+    font-size: min(1.2em, 5vw);
+    background: var(--vurgu-renk);
+    color: var(--yazi-renk);
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    width: 90%;
+    max-width: 300px;
+    animation: olceklenGel 0.8s ease-out 0.4s both;
+    box-shadow: 0 4px 15px rgba(255, 85, 85, 0.2);
+}
+
+#baslatButonu:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 20px rgba(255, 85, 85, 0.3);
+}
+
+.kontroller {
+    margin-top: 2em;
+    text-align: center;
+    width: 90%;
+    max-width: 600px;
+    background: rgba(255, 255, 255, 0.05);
+    padding: 2em;
+    border-radius: 15px;
+    backdrop-filter: blur(5px);
+    animation: yukaridanGel 0.8s ease-out 0.6s both;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    transition: all 0.3s ease;
+}
+
+.kontroller:hover {
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+    transform: translateY(-2px);
+}
+
+.kontrolGrid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1.2em;
+    text-align: center;
+    margin-bottom: 1em;
+    font-size: min(1em, 4vw);
+    max-width: 500px;
+    margin: 0 auto;
+}
+
+.kontrolGrid > div {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+}
+
+.kontrolGrid > div:nth-child(odd) {
+    color: var(--vurgu-renk);
+    font-weight: bold;
+}
+
+.kontrolTus {
+    display: inline-block;
+    padding: 8px 12px;
+    background: var(--vurgu-renk);
+    border-radius: 8px;
+    margin: 0 3px;
+    font-weight: bold;
+    min-width: 35px;
+    text-align: center;
+    transition: all 0.3s ease;
+}
+
+.kontrolTus:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 4px 12px rgba(255, 85, 85, 0.3);
+}
+
+.gelistirici {
+    position: fixed;
+    bottom: 20px;
+    left: 0;
+    right: 0;
+    text-align: center;
+    font-size: min(1em, 4vw);
+    color: rgba(255, 255, 255, 0.7);
+    padding: 10px;
+    animation: solYanaKay 0.8s ease-out 1s both;
+}
+
+.gelistirici span {
+    color: var(--vurgu-renk);
+    font-weight: bold;
+}
+
+#oyunAlani {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    touch-action: none;
+}
+
+#mobilUyari {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.9);
+    z-index: 1000;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    padding: 20px;
+}
+
+.telefonDondurmeIkonu {
+    width: 100px;
+    height: 100px;
+    border: 4px solid var(--vurgu-renk);
+    border-radius: 10px;
+    margin: 20px;
+    position: relative;
+    animation: dondur 2s infinite;
+}
+
+@keyframes dondur {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(90deg); }
+}
+
+@keyframes yukaridanGel {
+    from { opacity: 0; transform: translateY(-20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes olceklenGel {
+    from { transform: scale(0.9); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+}
+
+@keyframes solYanaKay {
+    from { transform: translateX(-50px); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+
+@media (max-width: 768px) {
+    .kontroller {
+        display: none;
+    }
+    
+    #girisEkrani {
+        justify-content: center;
+    }
+    
+    #kullaniciAdi,
+    #baslatButonu {
+        font-size: 1.2em;
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+
+    .gelistirici {
+        animation: yukaridanGel 0.5s ease-out 0.5s both;
+    }
+}
+
+@media (min-width: 769px) {
+    .kontrolGrid {
+        grid-template-columns: auto auto;
+        gap: 1.5em 2em;
+    }
+
+    .kontrolGrid > div:nth-child(odd) {
+        justify-content: flex-end;
+    }
+
+    .kontrolGrid > div:nth-child(even) {
+        justify-content: flex-start;
+    }
+}
+
+@media (max-width: 768px) and (orientation: portrait) {
+    #mobilUyari {
+        display: flex;
+    }
+}
+
+#reklamPopup {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.95);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 2000;
+    padding: 10px;
+}
+
+.reklam-icerik {
+    background: var(--vercel-gray);
+    border-radius: 15px;
+    padding: 20px;
+    width: 90%;
+    max-width: 600px;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 0 30px rgba(255, 85, 85, 0.2);
+    border: 2px solid var(--vurgu-renk);
+    display: flex;
+    flex-direction: column;
+}
+
+.reklam-baslik {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 0;
+    margin-bottom: 10px;
+    border-bottom: 1px solid rgba(255, 85, 85, 0.3);
+}
+
+.reklam-baslik h3 {
+    margin: 0;
+    font-size: 1.2em;
+}
+
+.sayac {
+    background: var(--vurgu-renk);
+    padding: 5px 10px;
+    border-radius: 5px;
+    font-weight: bold;
+    font-size: 0.9em;
+}
+
+.reklam-alan {
+    aspect-ratio: 16/9;
+    background: #000;
+    margin: 10px 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border-radius: 8px;
+    overflow: hidden;
+    position: relative;
+    flex-shrink: 0;
+}
+
+.reklam-alan img,
+.reklam-alan video {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+.yukleniyor {
+    position: absolute;
+    color: var(--yazi-renk);
+    font-size: 1em;
+    background: rgba(0, 0, 0, 0.7);
+    padding: 5px 10px;
+    border-radius: 5px;
+}
+
+.reklam-gec {
+    width: 100%;
+    padding: 15px;
+    margin-top: 10px;
+    background: var(--vurgu-renk);
+    color: var(--yazi-renk);
+    border: none;
+    border-radius: 8px;
+    font-size: 1em;
+    font-weight: bold;
+    cursor: not-allowed;
+    opacity: 0.5;
+    transition: all 0.3s ease;
+}
+
+.reklam-gec:not(:disabled) {
+    cursor: pointer;
+    opacity: 1;
+}
+
+@media (max-width: 768px) {
+    #reklamPopup {
+        padding: 10px;
+        align-items: center;
+    }
+
+    .reklam-icerik {
+        width: 95%;
+        padding: 15px;
+        margin: auto;
+        max-height: 85vh;
+    }
+
+    .reklam-baslik {
+        padding: 8px 0;
+    }
+
+    .reklam-baslik h3 {
+        font-size: 1.1em;
+    }
+
+    .sayac {
+        padding: 4px 8px;
+        font-size: 0.9em;
+    }
+
+    .reklam-alan {
+        margin: 8px 0;
+        border-radius: 6px;
+    }
+
+    .yukleniyor {
+        font-size: 0.9em;
+        padding: 4px 8px;
+    }
+
+    .reklam-gec {
+        padding: 12px;
+        font-size: 1em;
+        margin-top: 8px;
+        border-radius: 6px;
+    }
+}
+
+@media (max-width: 360px) {
+    .reklam-icerik {
+        padding: 10px;
+    }
+
+    .reklam-baslik h3 {
+        font-size: 1em;
+    }
+
+    .sayac {
+        font-size: 0.8em;
+    }
+
+    .reklam-gec {
+        padding: 10px;
+        font-size: 0.9em;
+    }
+}
+
+@media (max-height: 500px) and (orientation: landscape) {
+    .reklam-icerik {
+        max-height: 95vh;
+        padding: 10px;
+    }
+
+    .reklam-baslik {
+        padding: 5px 0;
+    }
+
+    .reklam-alan {
+        aspect-ratio: 16/9;
+        max-height: 60vh;
+    }
+
+    .reklam-gec {
+        padding: 8px;
+        margin-top: 5px;
+    }
+} 
