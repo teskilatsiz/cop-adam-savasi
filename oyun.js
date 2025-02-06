@@ -101,6 +101,7 @@ const SKOR = {
 
 const SES = {
     ates: new Audio('ses/ates.mp3'),
+    olum: new Audio('ses/olum.mp3'),
     oynat(ses) {
         if (ses) {
             ses.currentTime = 0;
@@ -502,38 +503,65 @@ function oyunDongusu() {
         parcaciklariGuncelle();
         animasyonID = requestAnimationFrame(oyunDongusu);
     } else {
-        olumEkraniCiz();
+        olumEkraniGoster();
         animasyonID = requestAnimationFrame(oyunDongusu);
     }
 }
 
-function olumEkraniCiz() {
-    cizimAlani.fillStyle = 'rgba(0, 0, 0, 0.8)';
-    cizimAlani.fillRect(0, 0, tuval.width, tuval.height);
+function olumEkraniGoster() {
+    const olumEkrani = document.createElement('div');
+    olumEkrani.id = 'olumEkrani';
+    olumEkrani.innerHTML = `
+        <div class="olum-icerik">
+            <h2>ÖLDÜN!</h2>
+            <div class="skor-bilgileri">
+                <div class="skor">Skor: ${SKOR.suankiSkor}</div>
+                <div class="en-yuksek">En Yüksek: ${SKOR.enYuksekSkor}</div>
+                <div class="oldurulen">Öldürülen: ${SKOR.oldurulenDusman}</div>
+            </div>
+            <div class="butonlar">
+                <button id="yenidenOyna">Yeniden Oyna</button>
+                <button id="menuDon">Ana Menüye Dön</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(olumEkrani);
 
-    cizimAlani.fillStyle = '#ff3333';
-    cizimAlani.font = 'bold 72px Arial';
-    cizimAlani.textAlign = 'center';
-    cizimAlani.textBaseline = 'middle';
-    cizimAlani.fillText('ÖLDÜN!', tuval.width/2, tuval.height/2 - 100);
+    // Buton olaylarını ekle
+    document.getElementById('yenidenOyna').addEventListener('click', () => {
+        document.body.removeChild(olumEkrani);
+        reklamGoster();
+    });
 
-    cizimAlani.fillStyle = '#ffffff';
-    cizimAlani.font = '32px Arial';
-    cizimAlani.fillText(`Skor: ${SKOR.suankiSkor}`, tuval.width/2, tuval.height/2);
-    cizimAlani.fillText(`En Yüksek Skor: ${SKOR.enYuksekSkor}`, tuval.width/2, tuval.height/2 + 50);
-    cizimAlani.fillText(`Öldürülen Düşman: ${SKOR.oldurulenDusman}`, tuval.width/2, tuval.height/2 + 100);
+    document.getElementById('menuDon').addEventListener('click', () => {
+        document.body.removeChild(olumEkrani);
+        oyunuSifirla();
+        document.getElementById('girisEkrani').style.display = 'flex';
+        tuval.style.display = 'none';
+    });
+}
 
-    const alpha = (Math.sin(Date.now() / 500) + 1) / 2;
-    cizimAlani.globalAlpha = 0.5 + (alpha * 0.5);
-    cizimAlani.font = 'bold 36px Arial';
-    cizimAlani.fillText('Yeniden başlamak için ekrana tıkla', tuval.width/2, tuval.height/2 + 180);
-    cizimAlani.globalAlpha = 1;
+function oyunuSifirla() {
+    // Oyun değişkenlerini sıfırla
+    oyuncu.x = OYUN.ALAN.GENISLIK / 2;
+    oyuncu.y = OYUN.ALAN.YUKSEKLIK / 2;
+    oyuncu.can = 100;
+    oyuncu.silahVar = false;
+    oyuncu.mermiSayisi = 0;
+    
+    dusmanlar = [];
+    mermiler = [];
+    silahlar = [];
+    parcaciklar = [];
+    
+    SKOR.suankiSkor = 0;
+    SKOR.oldurulenDusman = 0;
 }
 
 function oyunBitti() {
     oyunDevamEdiyor = false;
-    SES.oynat(SES.ates);
-    reklamGoster();
+    SES.oynat(SES.olum);
+    olumEkraniGoster();
 }
 
 function mermiOlustur(baslangicX, baslangicY, hedefX, hedefY, dusmanMermisiMi = false) {

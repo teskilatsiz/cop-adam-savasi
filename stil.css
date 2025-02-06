@@ -438,4 +438,107 @@ body {
         padding: 8px;
         margin-top: 5px;
     }
+}
+
+#olumEkrani {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.9);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1500;
+}
+
+.olum-icerik {
+    background: var(--vercel-gray);
+    border-radius: 15px;
+    padding: 30px;
+    width: 90%;
+    max-width: 400px;
+    text-align: center;
+    border: 2px solid var(--vurgu-renk);
+    animation: olceklenGel 0.3s ease-out;
+}
+
+.olum-icerik h2 {
+    color: var(--vurgu-renk);
+    font-size: 3em;
+    margin: 0 0 20px 0;
+    text-shadow: 0 0 10px rgba(255, 85, 85, 0.5);
+}
+
+.skor-bilgileri {
+    background: rgba(0, 0, 0, 0.3);
+    padding: 20px;
+    border-radius: 10px;
+    margin-bottom: 25px;
+}
+
+.skor-bilgileri div {
+    margin: 10px 0;
+    font-size: 1.2em;
+}
+
+.butonlar {
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+}
+
+.butonlar button {
+    padding: 15px 25px;
+    font-size: 1.1em;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    background: var(--vurgu-renk);
+    color: white;
+    font-weight: bold;
+}
+
+.butonlar button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(255, 85, 85, 0.3);
+}
+
+#yenidenOyna {
+    background: var(--vurgu-renk);
+}
+
+#menuDon {
+    background: #333;
+}
+
+@media (max-width: 768px) {
+    .olum-icerik {
+        padding: 20px;
+        width: 95%;
+    }
+
+    .olum-icerik h2 {
+        font-size: 2.5em;
+    }
+
+    .skor-bilgileri {
+        padding: 15px;
+    }
+
+    .skor-bilgileri div {
+        font-size: 1.1em;
+    }
+
+    .butonlar {
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .butonlar button {
+        width: 100%;
+        padding: 12px;
+    }
 } 
