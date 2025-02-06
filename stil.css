@@ -636,4 +636,91 @@ body {
 
 #menuDon {
     background: #333;
-} 
+}
+
+.mobile-device {
+    --base-font-size: 14px;
+    --base-padding: 10px;
+    --base-margin: 10px;
+}
+
+.desktop-device {
+    --base-font-size: 16px;
+    --base-padding: 20px;
+    --base-margin: 20px;
+}
+
+.mobile-device #olumEkrani {
+    padding: env(safe-area-inset-top, var(--base-padding)) 
+            env(safe-area-inset-right, var(--base-padding))
+            env(safe-area-inset-bottom, var(--base-padding))
+            env(safe-area-inset-left, var(--base-padding));
+}
+
+.mobile-device .olum-icerik {
+    width: min(92%, 400px);
+    padding: max(15px, 3vh);
+    margin: auto;
+    max-height: 85vh;
+    border-radius: 10px;
+}
+
+.mobile-device .olum-icerik h2 {
+    font-size: min(2.5em, 8vw);
+    margin-bottom: max(10px, 2vh);
+}
+
+.mobile-device .skor-bilgileri {
+    padding: max(12px, 2.5vh);
+    margin-bottom: max(15px, 3vh);
+    font-size: min(1em, 4vw);
+}
+
+.mobile-device .butonlar {
+    flex-direction: column;
+    gap: max(8px, 1.5vh);
+}
+
+.mobile-device .butonlar button {
+    width: 100%;
+    max-width: none;
+    padding: max(12px, 2.5vh);
+    margin: 0;
+    font-size: min(1em, 4.5vw);
+}
+
+.mobile-device.landscape .olum-icerik {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: max(10px, 2vw);
+    max-width: 95%;
+    padding: max(10px, 2vh);
+    height: auto;
+    max-height: 90vh;
+}
+
+.mobile-device.landscape .olum-icerik h2 {
+    writing-mode: vertical-lr;
+    transform: rotate(180deg);
+    margin: 0;
+    font-size: min(2.5em, 8vh);
+    white-space: nowrap;
+}
+
+<script>
+    function checkOrientation() {
+        if (window.mobileCheck()) {
+            if (window.innerHeight < window.innerWidth) {
+                document.documentElement.classList.add('landscape');
+                document.documentElement.classList.remove('portrait');
+            } else {
+                document.documentElement.classList.add('portrait');
+                document.documentElement.classList.remove('landscape');
+            }
+        }
+    }
+
+    window.addEventListener('load', checkOrientation);
+    window.addEventListener('resize', checkOrientation);
+    window.addEventListener('orientationchange', checkOrientation);
+</script> 
